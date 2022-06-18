@@ -21,26 +21,28 @@ struct Scope {
 // assignment or function call happens. A minor
 // vertex is an object on the stack to be
 // traced through
-struct Vertex {
-    kind: String,
+enum Vertex {
+    Major {
+        kind: String,
 
-    // help sonic find the code
-    source_code: String,
-    position: tree_sitter::Point,
-    context: Context,
+        // help sonic find the code
+        source_code: String,
+        position: tree_sitter::Point,
+        context: Context,
 
-    // these are the children on the graph
-    // (a child may have more than one parent)
-    arcs: Vec<Arc>,
-}
+        // these are the children on the graph
+        // (a child may have more than one parent)
+        arcs: Vec<Arc>,
+    },
 
-struct MinorVertex {
-    kind: String,
-    name: String,
+    Minor {
+        kind: String,
+        name: String,
+    },
 }
 
 struct Arc {
-    stack: Vec<MinorVertex>,
+    stack: Vec<Vertex>,
     // an immutable pointer to a vertex
     pointer: *const Vertex,
 }
