@@ -51,13 +51,15 @@ enum Vertex {
         name: String,
     },
 
+    // passes through if unknown
+    Unresolved,
     Break,
 }
 
 #[derive(Debug)]
 struct Arc {
     // path of hooks, conditionals, and loops
-    stack_slice: Vec<Context>,
+    context_stack: Vec<Context>,
 }
 
 #[derive(Debug)]
@@ -68,14 +70,22 @@ enum Taint {
         // name of var
         name: String,
         scope: Scope,
+        // allow us to connect to graph
+        parent: Box<Vertex>,
     },
     Function {
         name: String,
         vulns: Vec<String>,
+        // allow us to connect to graph
+        parent: Box<Vertex>,
     },
+    // top of graph
     Source {
         name: String,
         vulns: Vec<String>,
+    },
+    // these are the results (storing in this enum for graph)
+    Sink {
     },
 }
 
@@ -92,12 +102,17 @@ impl Analyzer {
     pub fn new(tree: Tree, source_code: String) -> Self {
         Self {
             tree,
-            graph: Dag::new(),
             source_code,
+            graph: Dag::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
             files: Vec::new(),
         }
+    }
+
+    pub fn load_map() -> Result<(), ()> {
+
+        Ok(())
     }
 
     pub fn traverse(&mut self) -> Result<(), ()> {
@@ -136,8 +151,10 @@ impl Analyzer {
             if visited {
                 if cursor.goto_next_sibling() {
                     visited = false;
-                    let s: String = node_to_string(&cursor.node(), self.source_code.as_str());
-                    return Ok(s);
+                    if cursor.node().kind() == "name" {
+                        let s: String = node_to_string(&cursor.node(), self.source_code.as_str());
+                        return Ok(s);
+                    }
                 } else if cursor.goto_parent() {
                 } else {
                     break;
