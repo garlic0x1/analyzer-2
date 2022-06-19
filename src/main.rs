@@ -1,60 +1,76 @@
 use std::fs;
-use tree_sitter::{Node, Parser, Tree, TreeCursor};
+use tree_sitter::{Node, Parser, Tree, TreeCursor, Point};
+use daggy::Dag;
 use tree_sitter_php;
 
 // not same thing as context in last version
 // this is to store hook/html stuff
+#[derive(Debug)]
 struct Context {
     kind: String,
     name: String,
 }
 
 // variable scope, same as old context, but with file
+#[derive(Debug)]
 struct Scope {
+    global: bool,
     file: String,
     class: Option<String>,
     function: Option<String>,
 }
 
-// there should be major and minor vertices
-// major vertices are parts of code where an
-// assignment or function call happens. A minor
-// vertex is an object on the stack to be
-// traced through
+#[derive(Debug)]
 enum Vertex {
-    Major {
+    Sink {
+        // type of vuln (sqli, rce, etc)
         kind: String,
-
-        // help sonic find the code
-        source_code: String,
-        position: tree_sitter::Point,
+        // name to match
+        name: String,
+        // extra info
+        code: String,
+        position: Point,
         context: Context,
-
-        // these are the children on the graph
-        // (a child may have more than one parent)
-        arcs: Vec<Arc>,
     },
 
-    Minor {
+    Assignment {
+        // type of assingment (assign, append, return, pass, etc)
         kind: String,
+        // taint to create
+        tainting: Taint,
+        // extra info
+        code: String,
+        position: Point,
+        context: Context,
+    },
+
+    Sanitizer {
+        // type of vuln (sqli, rce, etc)
+        kind: String,
+        // name to match
         name: String,
     },
+
+    Break 
 }
 
+#[derive(Debug)]
 struct Arc {
-    stack: Vec<Vertex>,
-    // an immutable pointer to a vertex
-    pointer: *const Vertex,
+    stack: Vec<Context>,
 }
 
+#[derive(Debug)]
 struct Taint {
-    kind: String,
+    // type of vuln (sqli, rce, etc)
+    vuln: String,
+    // name of var
     name: String,
     scope: Scope,
 }
 
 struct Analyzer {
     tree: Tree,
+    graph: Dag<Vertex, Arc>,
     source_code: String,
     context_stack: Vec<Context>,
     taints: Vec<Taint>,
@@ -65,6 +81,7 @@ impl Analyzer {
     pub fn new(tree: Tree, source_code: String) -> Self {
         Self {
             tree,
+            graph: Dag::new(),
             source_code,
             taints: Vec::new(),
             context_stack: Vec::new(),
