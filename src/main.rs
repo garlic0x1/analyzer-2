@@ -1,6 +1,6 @@
-use std::fs;
-use tree_sitter::{Node, Parser, Tree, TreeCursor, Point};
 use daggy::Dag;
+use std::fs;
+use tree_sitter::{Node, Parser, Point, Tree, TreeCursor};
 use tree_sitter_php;
 
 // not same thing as context in last version
@@ -51,7 +51,7 @@ enum Vertex {
         name: String,
     },
 
-    Break 
+    Break,
 }
 
 #[derive(Debug)]
@@ -60,12 +60,22 @@ struct Arc {
 }
 
 #[derive(Debug)]
-struct Taint {
-    // type of vuln (sqli, rce, etc)
-    vuln: String,
-    // name of var
-    name: String,
-    scope: Scope,
+enum Taint {
+    Variable {
+        // type of vuln (sqli, rce, etc)
+        vuln: String,
+        // name of var
+        name: String,
+        scope: Scope,
+    },
+    Function {
+        name: String,
+        vuln: String,
+    },
+    Source {
+        name: String,
+        vuln: String,
+    },
 }
 
 struct Analyzer {
