@@ -1,6 +1,6 @@
 use daggy::Dag;
 use std::fs;
-use tree_sitter::{Node, Parser, Point, Tree, TreeCursor};
+use tree_sitter::{Query, Node, Parser, Point, Tree, TreeCursor};
 use tree_sitter_php;
 
 // not same thing as context in last version
@@ -89,6 +89,10 @@ enum Taint {
     },
 }
 
+struct Vuln {
+
+}
+
 struct Analyzer {
     tree: Tree,
     graph: Dag<Vertex, Arc>,
@@ -96,6 +100,7 @@ struct Analyzer {
     context_stack: Vec<Context>,
     taints: Vec<Taint>,
     files: Vec<String>,
+    data_map: Vec<Vuln>,
 }
 
 impl Analyzer {
@@ -106,13 +111,30 @@ impl Analyzer {
             graph: Dag::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
+            data_map: Vec::new(),
             files: Vec::new(),
         }
     }
 
-    pub fn load_map() -> Result<(), ()> {
+    pub fn resolve_function(&self, name: String) -> Result<(), ()> {
+        let s = format!("(function_definition
+                            (name) @{})", name);
+        let mut query = Query::new(tree_sitter_php::language(), s.as_str());
+        match query {
+            Ok(query) => {
+                let names = query.capture_names();
+                println!("{:?}", names);
+                Ok(())
+            },
+            Err(err) => {
+                println!("{:?}", err);
+                Err(())
+            },
+        }
+    }
 
-        Ok(())
+    pub fn load_map() -> Result<(), ()> {
+        Err(())
     }
 
     pub fn traverse(&mut self) -> Result<(), ()> {
@@ -229,6 +251,7 @@ fn main() -> Result<(), ()> {
 
     let mut analyzer = Analyzer::new(tree.clone(), source_code);
     analyzer.traverse()?;
+    analyzer.resolve_function("test_func".to_string());
     Ok(())
 }
 
