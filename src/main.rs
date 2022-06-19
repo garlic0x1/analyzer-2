@@ -1,6 +1,6 @@
 use daggy::Dag;
 use std::fs;
-use tree_sitter::{Query, Node, Parser, Point, Tree, TreeCursor};
+use tree_sitter::{QueryCursor, Query, Node, Parser, Point, Tree, TreeCursor};
 use tree_sitter_php;
 
 // not same thing as context in last version
@@ -118,11 +118,15 @@ impl Analyzer {
 
     pub fn resolve_function(&self, name: String) -> Result<(), ()> {
         let s = format!("(function_definition
-                            (name) @{})", name);
-        let mut query = Query::new(tree_sitter_php::language(), s.as_str());
+                            name: (name) @{})", name);
+        let query = Query::new(tree_sitter_php::language(), s.as_str());
+        let mut qcursor = QueryCursor::new();
+        let tree_clone = self.tree.clone();
+        let matches = qcursor.matches(query, tree_clone.root_node(), self.source_code);
+
         match query {
             Ok(query) => {
-                let names = query.capture_names();
+                let names = query.start_byte_for_pattern(0);
                 println!("{:?}", names);
                 Ok(())
             },
@@ -223,6 +227,7 @@ impl Analyzer {
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, tabs: usize) -> Result<(), ()> {
         let node = cursor.node();
+        println!("{}", node.to_sexp());
         if node.is_named() && !node.is_extra() {
             println!("{}Kind: {}", "  ".repeat(tabs), node.kind());
             println!(
