@@ -128,7 +128,8 @@ impl Analyzer {
 
     // more efficient that tracing up every name,
     // the idea is to do a depth first crawl of the branch
-    // and identify the first name.
+    // and identify the first name, will handle weird stuff
+    // better than just getting the first child
     fn find_name(&self, cursor: &mut TreeCursor) -> Result<String, ()> {
         let mut visited = false;
         loop {
@@ -175,24 +176,6 @@ impl Analyzer {
                     // sink
                     // break
                 },
-                _ => (),
-            }
-        }
-    }
-
-    fn trace_name(&self, cursor: &mut TreeCursor) {
-        while cursor.goto_parent() {
-            match cursor.node().kind() {
-                "function_call_expression" => {
-                    // check if tainted, if so, trace_taint()
-                    println!("FUNC CALL NAME");
-                    break;
-                }
-                "variable_name" => {
-                    // check if tainted, if so, trace_taint()
-                    println!("VAR NAME");
-                    break;
-                }
                 _ => (),
             }
         }
