@@ -63,18 +63,18 @@ struct Arc {
 enum Taint {
     Variable {
         // type of vuln (sqli, rce, etc)
-        vuln: String,
+        vulns: Vec<String>,
         // name of var
         name: String,
         scope: Scope,
     },
     Function {
         name: String,
-        vuln: String,
+        vulns: Vec<String>,
     },
     Source {
         name: String,
-        vuln: String,
+        vulns: Vec<String>,
     },
 }
 
@@ -128,9 +128,24 @@ impl Analyzer {
     fn trace_taint(&mut self, cursor: &mut TreeCursor) {
         while cursor.goto_parent() {
             match cursor.node().kind() {
-                "function_call_expression" => {}
-                "method_call_expression" => {}
-                "echo_statement" => {}
+                "assignment_expression" => {
+                    // get name from variable_name.name or equivalent
+                    // pass taints with unsanitized vuln categories, or none at all.
+                },
+                "function_call_expression" => {
+                    // get name from child 0
+                    // if sink break
+                    // if sanitizer blacklist vuln
+                },
+                "method_call_expression" => {
+                    // get name from child 0
+                    // if sink break
+                    // if sanitizer blacklist vuln
+                },
+                "echo_statement" => {
+                    // sink
+                    // break
+                },
                 _ => (),
             }
         }
@@ -140,10 +155,12 @@ impl Analyzer {
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "function_call_expression" => {
+                    // check if tainted, if so, trace_taint()
                     println!("FUNC CALL NAME");
                     break;
                 }
                 "variable_name" => {
+                    // check if tainted, if so, trace_taint()
                     println!("VAR NAME");
                     break;
                 }
