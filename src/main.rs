@@ -56,7 +56,8 @@ enum Vertex {
 
 #[derive(Debug)]
 struct Arc {
-    stack: Vec<Context>,
+    // path of hooks, conditionals, and loops
+    stack_slice: Vec<Context>,
 }
 
 #[derive(Debug)]
@@ -125,6 +126,34 @@ impl Analyzer {
         Ok(())
     }
 
+    // more efficient that tracing up every name,
+    // the idea is to do a depth first crawl of the branch
+    // and identify the first name.
+    fn find_name(&self, cursor: &mut TreeCursor) -> Result<String, ()> {
+        let mut visited = false;
+        loop {
+            if visited {
+                if cursor.goto_next_sibling() {
+                    visited = false;
+                    let s: String = node_to_string(&cursor.node(), self.source_code.as_str());
+                    return Ok(s);
+                } else if cursor.goto_parent() {
+                } else {
+                    break;
+                }
+            } else if cursor.goto_first_child() {
+                if cursor.node().kind() == "name" {
+                    let s: String = node_to_string(&cursor.node(), self.source_code.as_str());
+                    return Ok(s);
+                }
+            } else {
+                visited = true;
+            }
+        }
+        
+        Err(())
+    }
+
     fn trace_taint(&mut self, cursor: &mut TreeCursor) {
         while cursor.goto_parent() {
             match cursor.node().kind() {
@@ -181,7 +210,9 @@ impl Analyzer {
             );
         }
         match node.kind() {
-            "name" => self.trace_name(cursor),
+            "function_call_expression" => println!("{}Name: {:?}", "  ".repeat(tabs), self.find_name(&mut cursor.clone())),
+            "method_call_expression" => println!("{}Name: {:?}", "  ".repeat(tabs), self.find_name(&mut cursor.clone())),
+            "variable_name" => println!("{}Name: {:?}", "  ".repeat(tabs), self.find_name(&mut cursor.clone())),
             _ => (),
         }
         Ok(())
