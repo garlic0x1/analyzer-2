@@ -14,7 +14,7 @@ struct Context {
 }
 
 // variable scope, same as old context, but with file
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Scope {
     global: bool,
     file: String,
@@ -112,38 +112,13 @@ impl Analyzer {
     }
 
     /*
-    pub fn resolve_names(&self, name: String) -> Result<(), QueryError> {
-        let s = format!(
-            "(function_definition
-                            name: (name) @{})",
-            name
-        );
-        let query = Query::new(tree_sitter_php::language(), s.as_str())?;
-        let mut qcursor = QueryCursor::new();
-        let tree_clone = self.tree.clone();
-        let provider: tree_sitter::TextProvider = self.source_code.as_bytes();
-        let matches = qcursor.matches(query, tree_clone.root_node(), provider);
-
-        match query {
-            Ok(query) => {
-                let names = query.start_byte_for_pattern(0);
-                println!("{:?}", names);
-                Ok(())
-            }
-            Err(err) => {
-                println!("{:?}", err);
-                Err(())
-            }
-        }
-    }
-    */
-
     pub fn load_map() -> Result<(), ()> {
         Err(())
     }
+    */
 
     pub fn traverse(&mut self) -> Result<(), ()> {
-        let file = self.files[0].clone();
+        let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main) file
         let t = file.tree.clone();
         let mut cursor = t.walk();
         let mut visited = false;
