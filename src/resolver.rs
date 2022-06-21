@@ -1,34 +1,29 @@
 use tree_sitter::*;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Resolved<'a> {
-    Function { name: String, point: Point, cursor: TreeCursor<'a> },
-    Class { name: String, point: Point, cursor: TreeCursor<'a> },
-    Method { name: String, point: Point, cursor: TreeCursor<'a> },
-    Property { name: String, point: Point, cursor: TreeCursor<'a> },
+    Function { name: String, cursor: TreeCursor<'a> },
+    Class { name: String, cursor: TreeCursor<'a> },
+    Method { name: String, cursor: TreeCursor<'a> },
+    Property { name: String, cursor: TreeCursor<'a> },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct File<'a> {
     pub filename: String,
-    pub source_code: String,
-    pub tree: Tree,
+    pub source_code: &'a str,
+    pub tree: &'a Tree,
     pub resolved: HashMap<String, Resolved<'a>>,
 }
 
 // file should contain all traversing logic?
 impl<'a> File<'a> {
-    pub fn new(filename: String, source_code: String) -> Self {
-        let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_php::language())
-            .expect("Error loading PHP parsing support");
-        let tree = parser.parse(source_code.clone(), None).unwrap();
+    pub fn new(filename: String, tree: &'a Tree, source_code: &'a str) -> Self {
         Self {
             filename,
             source_code,
-            tree,
+            tree: &tree,
             resolved: HashMap::new(),
         }
     }
@@ -38,30 +33,40 @@ impl<'a> File<'a> {
     }
 
     // crawl tree and identify code blocks
-    fn resolve(&mut self) {
-        let t = self.tree.clone();
-        let mut cursor = t.walk();
+    pub fn resolve(&mut self) {
+        let mut cursor = self.tree.walk();
         let mut visited = false;
         loop {
             if visited {
                 if cursor.goto_next_sibling() {
                     // enter
+                    self.resolve_node(&cursor.clone());
                 } else if cursor.goto_parent() {
                 } else {
                     break;
                 }
             } else if cursor.goto_first_child() {
                 // enter
+                self.resolve_node(&cursor.clone());
             } else {
                 visited = true;
             }
         }
+        println!("Resolved functions {:?}", self.resolved.clone().into_keys());
     }
 
-    fn enter_node(&mut self, cursor: &mut TreeCursor) {
+    fn resolve_node(&mut self, cursor: &TreeCursor<'a>) {
         let node = cursor.node();
         match node.kind() {
-            "function_definition" => {}
+            "function_definition" => {
+                if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                let value = Resolved::Function {
+                    name: name.clone(),
+                    cursor: cursor.clone(),
+                };
+                self.resolved.insert(name, value);
+                }
+            }
             "method_definition" => {}
             "property_name" => {}
             "class_definition" => {}
@@ -69,14 +74,14 @@ impl<'a> File<'a> {
         }
     }
 
-    fn find_name(&self, cursor: &mut TreeCursor, file: &File) -> Result<String, ()> {
+    fn find_name(&self, cursor: &mut TreeCursor) -> Result<String, ()> {
         let mut visited = false;
         loop {
             if visited {
                 if cursor.goto_next_sibling() {
                     visited = false;
                     if cursor.node().kind() == "name" {
-                        let s: String = node_to_string(&cursor.node(), file.source_code.as_str());
+                        let s: String = node_to_string(&cursor.node(), self.source_code);
                         return Ok(s);
                     }
                 } else if cursor.goto_parent() {
@@ -85,7 +90,7 @@ impl<'a> File<'a> {
                 }
             } else if cursor.goto_first_child() {
                 if cursor.node().kind() == "name" {
-                    let s: String = node_to_string(&cursor.node(), file.source_code.as_str());
+                    let s: String = node_to_string(&cursor.node(), self.source_code);
                     return Ok(s);
                 }
             } else {

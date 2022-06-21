@@ -92,16 +92,16 @@ enum Taint {
 
 struct Vuln {}
 
-struct Analyzer {
-    files: Vec<resolver::File>,
+struct Analyzer<'a> {
+    files: Vec<resolver::File<'a>>,
     graph: Dag<Vertex, Arc>,
     context_stack: Vec<Context>,
     taints: Vec<Taint>,
     data_map: Vec<Vuln>,
 }
 
-impl Analyzer {
-    pub fn new(files: Vec<File>) -> Self {
+impl<'a> Analyzer <'a>{
+    pub fn new(files: Vec<File<'a>>) -> Self {
         Self {
             files,
             graph: Dag::new(),
@@ -155,7 +155,7 @@ impl Analyzer {
                 if cursor.goto_next_sibling() {
                     visited = false;
                     if cursor.node().kind() == "name" {
-                        let s: String = node_to_string(&cursor.node(), file.source_code.as_str());
+                        let s: String = node_to_string(&cursor.node(), file.source_code);
                         return Ok(s);
                     }
                 } else if cursor.goto_parent() {
@@ -164,7 +164,7 @@ impl Analyzer {
                 }
             } else if cursor.goto_first_child() {
                 if cursor.node().kind() == "name" {
-                    let s: String = node_to_string(&cursor.node(), file.source_code.as_str());
+                    let s: String = node_to_string(&cursor.node(), file.source_code);
                     return Ok(s);
                 }
             } else {
@@ -204,13 +204,13 @@ impl Analyzer {
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, file: &File, tabs: usize) -> Result<(), ()> {
         let node = cursor.node();
-        println!("{}", node.to_sexp());
+        //println!("{}", node.to_sexp());
         if node.is_named() && !node.is_extra() {
             println!("{}Kind: {}", "  ".repeat(tabs), node.kind());
             println!(
                 "{}Code: {}",
                 "  ".repeat(tabs),
-                node_to_string(&node, file.source_code.as_str())
+                node_to_string(&node, file.source_code)
             );
         }
         match node.kind() {
@@ -237,7 +237,13 @@ impl Analyzer {
 
 fn main() -> Result<(), ()> {
     let source_code = fs::read_to_string("test.php").expect("failed to read file");
-    let file = File::new("filename".to_string(), source_code);
+    let mut parser = Parser::new();
+        parser
+            .set_language(tree_sitter_php::language())
+            .expect("Error loading PHP parsing support");
+        let tree: Tree = parser.parse(&source_code, None).unwrap();
+    let mut file = File::new("filename".to_string(), &tree, &source_code);
+    file.resolve();
     let mut files = Vec::new();
     files.push(file);
 
