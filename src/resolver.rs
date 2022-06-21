@@ -78,7 +78,7 @@ impl<'a> File<'a> {
             }
             "property_name" => {
                 if let Ok(name) = self.find_name(&mut cursor.clone()) {
-                let value = Resolved::Method {
+                let value = Resolved::Property {
                     name: name.clone(),
                     cursor: cursor.clone(),
                 };
@@ -87,7 +87,7 @@ impl<'a> File<'a> {
             }
             "class_definition" => {
                 if let Ok(name) = self.find_name(&mut cursor.clone()) {
-                let value = Resolved::Method {
+                let value = Resolved::Class {
                     name: name.clone(),
                     cursor: cursor.clone(),
                 };
