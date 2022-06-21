@@ -1,22 +1,24 @@
 use tree_sitter::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-pub enum Resolved {
-    Function { name: String, point: Point },
-    Class { name: String, point: Point },
-    Method { name: String, point: Point },
-    Property { name: String, point: Point },
+pub enum Resolved<'a> {
+    Function { name: String, point: Point, cursor: TreeCursor<'a> },
+    Class { name: String, point: Point, cursor: TreeCursor<'a> },
+    Method { name: String, point: Point, cursor: TreeCursor<'a> },
+    Property { name: String, point: Point, cursor: TreeCursor<'a> },
 }
 
 #[derive(Debug, Clone)]
-pub struct File {
+pub struct File<'a> {
     pub filename: String,
     pub source_code: String,
     pub tree: Tree,
-    pub resolved: Vec<Resolved>,
+    pub resolved: HashMap<String, Resolved<'a>>,
 }
 
-impl File {
+// file should contain all traversing logic?
+impl<'a> File<'a> {
     pub fn new(filename: String, source_code: String) -> Self {
         let mut parser = Parser::new();
         parser
@@ -27,7 +29,7 @@ impl File {
             filename,
             source_code,
             tree,
-            resolved: Vec::new(),
+            resolved: HashMap::new(),
         }
     }
 
@@ -35,6 +37,7 @@ impl File {
         self.source_code.contains("* Plugin Name: ")
     }
 
+    // crawl tree and identify code blocks
     fn resolve(&mut self) {
         let t = self.tree.clone();
         let mut cursor = t.walk();
