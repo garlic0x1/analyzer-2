@@ -67,9 +67,33 @@ impl<'a> File<'a> {
                 self.resolved.insert(name, value);
                 }
             }
-            "method_definition" => {}
-            "property_name" => {}
-            "class_definition" => {}
+            "method_definition" => {
+                if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                let value = Resolved::Method {
+                    name: name.clone(),
+                    cursor: cursor.clone(),
+                };
+                self.resolved.insert(name, value);
+                }
+            }
+            "property_name" => {
+                if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                let value = Resolved::Method {
+                    name: name.clone(),
+                    cursor: cursor.clone(),
+                };
+                self.resolved.insert(name, value);
+                }
+            }
+            "class_definition" => {
+                if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                let value = Resolved::Method {
+                    name: name.clone(),
+                    cursor: cursor.clone(),
+                };
+                self.resolved.insert(name, value);
+                }
+            }
             _ => (),
         }
     }
