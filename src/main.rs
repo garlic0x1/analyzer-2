@@ -1,83 +1,43 @@
 use crate::resolver::*;
+use crate::graph::*;
 use daggy::Dag;
 use std::fs;
 use tree_sitter::*;
 
 pub mod resolver;
 pub mod rules;
+pub mod graph;
 
 // not same thing as context in last version
 // this is to store hook/html stuff
-#[derive(Debug)]
-struct Context {
+//#[derive(Debug)]
+pub struct Context {
     kind: String,
     name: String,
 }
 
 // variable scope, same as old context, but with file
-#[derive(Debug, Clone)]
-struct Scope {
+#[derive(Clone)]
+pub struct Scope<'a> {
     global: bool,
-    file: String,
+    file: &'a File<'a>,
     class: Option<String>,
     function: Option<String>,
 }
 
-#[derive(Debug)]
-enum Vertex {
-    Sink {
-        // type of vuln (sqli, rce, etc)
-        kind: String,
-        // name to match
-        name: String,
-        // extra info
-        code: String,
-        position: Point,
-        context: Context,
-    },
-
-    Assignment {
-        // type of assingment (assign, append, return, pass, etc)
-        kind: String,
-        // taint to create
-        tainting: Taint,
-        // extra info
-        code: String,
-        position: Point,
-        context: Context,
-    },
-
-    Sanitizer {
-        // type of vuln (sqli, rce, etc)
-        kind: String,
-        // name to match
-        name: String,
-    },
-
-    // passes through if unknown
-    Unresolved,
-    Break,
-}
-
-#[derive(Debug)]
-struct Arc {
-    // path of hooks, conditionals, and loops
-    context_stack: Vec<Context>,
-}
-
-#[derive(Debug)]
-enum Taint {
+//#[derive(Debug)]
+pub enum Taint<'a> {
     Variable {
         // name of var
         name: String,
-        scope: Scope,
+        scope: Scope<'a>,
         // allow us to connect to graph
-        parent: Box<Vertex>,
+        parent: &'a Vertex<'a>,
     },
     Function {
         name: String,
         // allow us to connect to graph
-        parent: Box<Vertex>,
+        parent: Box<Vertex<'a>>,
     },
     // top of graph
     Source {
@@ -87,12 +47,12 @@ enum Taint {
     Sink {},
 }
 
-struct Analyzer<'a> {
+pub struct Analyzer<'a> {
     files: Vec<resolver::File<'a>>,
     rules: rules::Rules,
-    graph: Dag<Vertex, Arc>,
+    graph: Graph,
     context_stack: Vec<Context>,
-    taints: Vec<Taint>,
+    taints: Vec<Taint<'a>>,
 }
 
 impl<'a> Analyzer<'a> {
@@ -100,7 +60,7 @@ impl<'a> Analyzer<'a> {
         let mut s = Self {
             files,
             rules,
-            graph: Dag::new(),
+            graph: Graph::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
         };
@@ -249,7 +209,7 @@ impl<'a> Analyzer<'a> {
     }
 }
 
-fn main() -> Result<(), ()> {
+fn main() {
     let ruleset = rules::Rules::new("");
     let source_code = fs::read_to_string("test.php").expect("failed to read file");
     let mut parser = Parser::new();
@@ -263,7 +223,6 @@ fn main() -> Result<(), ()> {
 
     let mut analyzer = Analyzer::new(files, ruleset);
     analyzer.build_graph();
-    Ok(())
 }
 
 fn node_to_string(node: &Node, source: &str) -> String {
