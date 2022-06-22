@@ -109,12 +109,21 @@ impl<'a> Analyzer<'a> {
         return s;
     }
 
-    pub fn traverse_new(&mut self) {
+    fn load_sources(&mut self) {
+        for source in self.rules.sources.iter() {
+            let taint = Taint::Source {
+                name: source.name.clone(),
+            };
+            self.taints.push(taint);
+        }
+    }
+
+    pub fn build_graph(&mut self) {
         let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main for now) file
         let t = file.tree.clone();
         let mut cursor = t.walk();
 
-        println!("beginning traversal!");
+        // start traversing with root of main file
         self.traverse_block(&mut cursor, &file);
     }
 
@@ -148,15 +157,6 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn load_sources(&mut self) {
-        for source in self.rules.sources.iter() {
-            let taint = Taint::Source {
-                name: source.name.clone(),
-            };
-            self.taints.push(taint);
-        }
-    }
-
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, file: &File) -> bool {
         let node = cursor.node();
@@ -185,37 +185,7 @@ impl<'a> Analyzer<'a> {
         }
         return true;
     }
-    pub fn traverse(&mut self) -> Result<(), ()> {
-        let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main) file
-        let t = file.tree.clone();
-        let mut cursor = t.walk();
-        let mut visited = false;
-        let mut tabs = 0;
-        loop {
-            if visited {
-                if cursor.goto_next_sibling() {
-                    self.enter_node(&mut cursor.clone(), &file);
-                    visited = false;
-                } else if cursor.goto_parent() {
-                    tabs -= 1;
-                    //self.leave_node(&cursor.node(), &mut cursor.clone(), tabs)?;
-                } else {
-                    break;
-                }
-            } else if cursor.goto_first_child() {
-                self.enter_node(&mut cursor.clone(), &file);
-                tabs += 1;
-            } else {
-                visited = true;
-            }
-        }
-        Ok(())
-    }
 
-    // more efficient that tracing up every name,
-    // the idea is to do a depth first crawl of the branch
-    // and identify the first name, will handle weird stuff
-    // better than just getting the first child
     fn find_name(&self, cursor: &mut TreeCursor, file: &File) -> Result<String, ()> {
         let mut visited = false;
         loop {
@@ -287,12 +257,12 @@ fn main() -> Result<(), ()> {
         .set_language(tree_sitter_php::language())
         .expect("Error loading PHP parsing support");
     let tree: Tree = parser.parse(&source_code, None).unwrap();
-    let mut file = File::new("filename".to_string(), &tree, &source_code);
+    let file = File::new("filename".to_string(), &tree, &source_code);
     let mut files = Vec::new();
     files.push(file);
 
     let mut analyzer = Analyzer::new(files, ruleset);
-    analyzer.traverse_new();
+    analyzer.build_graph();
     Ok(())
 }
 
