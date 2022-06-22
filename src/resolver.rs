@@ -3,6 +3,7 @@ use tree_sitter::*;
 
 #[derive(Clone)]
 pub enum Resolved<'a> {
+    Root { cursor: TreeCursor<'a>, },
     Function {
         name: String,
         cursor: TreeCursor<'a>,
@@ -47,6 +48,12 @@ impl<'a> File<'a> {
     // crawl tree and identify code blocks
     pub fn resolve(&mut self) {
         let mut cursor = self.tree.walk();
+        
+        let resolved = Resolved::Root {
+            cursor: cursor.clone(),
+        };
+        self.resolved.insert("ROOT".to_string(), resolved);
+
         let mut visited = false;
         loop {
             if visited {

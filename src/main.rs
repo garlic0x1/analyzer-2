@@ -112,13 +112,22 @@ impl<'a> Analyzer<'a> {
         return s;
     }
 
-    pub fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &File) {
+    pub fn traverse_new(&mut self) {
+        let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main) file
+        let t = file.tree.clone();
+        let mut cursor = t.walk();
+
+        println!("beginning traversal!");
+        self.traverse_block(&mut cursor, &file);
+    }
+
+    fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &File) {
         let mut visited = false;
         loop {
             if visited {
                 if cursor.goto_next_sibling() {
                     let cont = self.enter_node(&mut cursor.clone(), &file);
-                    if cont {
+                    if !cont {
                         visited = true;
                         cursor.goto_parent();
                         continue;
@@ -139,7 +148,9 @@ impl<'a> Analyzer<'a> {
 
     fn load_sources(&mut self) {
         for source in self.rules.sources.iter() {
-            let taint = Taint::Source { name: source.name.clone() };
+            let taint = Taint::Source {
+                name: source.name.clone(),
+            };
             self.taints.push(taint);
         }
     }
@@ -157,7 +168,7 @@ impl<'a> Analyzer<'a> {
                     for t in self.taints.iter() {
                         match t {
                             Taint::Variable { name, .. } | Taint::Source { name, .. } => {
-                    println!("matched {}", var_name);
+                                println!("matched {}", var_name);
                                 if name == &var_name {
                                     self.trace_taint(cursor);
                                     return true;
@@ -211,7 +222,7 @@ impl<'a> Analyzer<'a> {
                     visited = false;
                     if cursor.node().kind() == "name" {
                         let s: String = node_to_string(&cursor.node(), file.source_code);
-                    println!("found name {}", s);
+                        println!("found name {}", s);
                         return Ok(s);
                     }
                 } else if cursor.goto_parent() {
@@ -274,7 +285,7 @@ fn main() -> Result<(), ()> {
     files.push(file);
 
     let mut analyzer = Analyzer::new(files, ruleset);
-    analyzer.traverse()?;
+    analyzer.traverse_new();
     Ok(())
 }
 
