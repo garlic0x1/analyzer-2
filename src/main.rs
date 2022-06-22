@@ -87,15 +87,12 @@ enum Taint {
     Sink {},
 }
 
-struct Vuln {}
-
 struct Analyzer<'a> {
     files: Vec<resolver::File<'a>>,
     rules: rules::Rules,
     graph: Dag<Vertex, Arc>,
     context_stack: Vec<Context>,
     taints: Vec<Taint>,
-    data_map: Vec<Vuln>,
 }
 
 impl<'a> Analyzer<'a> {
@@ -106,14 +103,14 @@ impl<'a> Analyzer<'a> {
             graph: Dag::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
-            data_map: Vec::new(),
         };
+        // initialize the taint vec with sources of input
         s.load_sources();
         return s;
     }
 
     pub fn traverse_new(&mut self) {
-        let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main) file
+        let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main for now) file
         let t = file.tree.clone();
         let mut cursor = t.walk();
 
@@ -280,7 +277,6 @@ fn main() -> Result<(), ()> {
         .expect("Error loading PHP parsing support");
     let tree: Tree = parser.parse(&source_code, None).unwrap();
     let mut file = File::new("filename".to_string(), &tree, &source_code);
-    file.resolve();
     let mut files = Vec::new();
     files.push(file);
 

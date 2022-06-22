@@ -42,4 +42,8 @@ impl Rules {
             }],
         }
     }
+
+    fn from_yaml(&mut self, filename: &str) {
+        // parse yaml/json into our structure
+    }
 }

@@ -30,15 +30,16 @@ pub struct File<'a> {
     pub resolved: HashMap<String, Resolved<'a>>,
 }
 
-// file should contain all traversing logic?
 impl<'a> File<'a> {
     pub fn new(filename: String, tree: &'a Tree, source_code: &'a str) -> Self {
-        Self {
+        let mut  s = Self {
             filename,
             source_code,
             tree: &tree,
             resolved: HashMap::new(),
-        }
+        };
+        s.resolve();
+        return s;
     }
 
     pub fn is_main(&self) -> bool {
@@ -46,7 +47,7 @@ impl<'a> File<'a> {
     }
 
     // crawl tree and identify code blocks
-    pub fn resolve(&mut self) {
+    fn resolve(&mut self) {
         let mut cursor = self.tree.walk();
         
         let resolved = Resolved::Root {
