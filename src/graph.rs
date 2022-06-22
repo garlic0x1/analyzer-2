@@ -4,15 +4,16 @@ use super::*;
 
 pub struct Graph<'a> {
     dag: Dag<Vertex<'a>, Arc>,
-    leaves: HashMap<&'a Taint<'a>, &'a Vertex<'a>>,
+    leaves: HashMap<&'a Taint<'a>, daggy::NodeIndex>,
 }
 
+#[derive(Clone)]
 pub enum Vertex<'a> {
     Assignment {
         // type of assingment (assign, append, return, pass, etc)
         kind: String,
         // taint to create
-        tainting: Taint<'a>,
+        tainting: &'a Taint<'a>,
         // extra info
         code: String,
         position: Point,
@@ -37,7 +38,31 @@ impl<'a> Graph<'a> {
         } 
     }
 
-    pub fn push(&mut self, parent_taint: &Taint) {
+    pub fn push(&mut self, vertex: Vertex<'a>, arc: Arc, parent_taint: &'a Taint<'a>) {
         let leaf = self.leaves.get(parent_taint);
+        match leaf {
+            Some(leaf) => {
+                let id = self.dag.add_child(*leaf, arc, vertex.clone());
+                match vertex {
+                    Vertex::Assignment { tainting, .. } => {
+                        self.leaves.insert(tainting, id.1);
+                    },
+                    _ => {
+                        self.leaves.insert(parent_taint, id.1);
+                    },
+                }
+            },
+            None => {
+                let id = self.dag.add_node(vertex.clone());
+                match vertex {
+                    Vertex::Assignment { tainting, .. } => {
+                        self.leaves.insert(tainting, id);
+                    },
+                    _ => {
+                        self.leaves.insert(parent_taint, id);
+                    },
+                }
+            }
+        }
     }
 }

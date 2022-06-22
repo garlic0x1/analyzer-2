@@ -10,7 +10,7 @@ pub mod graph;
 
 // not same thing as context in last version
 // this is to store hook/html stuff
-//#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Context {
     kind: String,
     name: String,
