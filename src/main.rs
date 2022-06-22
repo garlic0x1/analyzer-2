@@ -117,6 +117,42 @@ impl<'a> Analyzer <'a>{
     }
     */
 
+    pub fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &File) {
+        let mut visited = false;
+        loop {
+            if visited {
+                if cursor.goto_next_sibling() {
+                    let cont = self.enter_node(&mut cursor.clone(), &file);
+                    if  cont {
+                        visited = true;
+                        cursor.goto_parent();
+                        continue;
+                    }
+                    visited = false;
+                } else if cursor.goto_parent() {
+                    //self.leave_node(&cursor.node(), &mut cursor.clone(), tabs)?;
+                } else {
+                    break;
+                }
+            } else if cursor.goto_first_child() {
+                self.enter_node(&mut cursor.clone(), &file);
+            } else {
+                visited = true;
+            }
+        }
+    }
+
+    // call with a cloned TreeCursor to not lose our place in the traversal
+    fn enter_node(&mut self, cursor: &mut TreeCursor, file: &File) -> bool {
+        let node = cursor.node();
+        match node.kind() {
+            "function_definition" | "method_definition" | "class_definition" => return false,
+            "function_call_expression" => return true,
+            "method_call_expression" => return true,
+            "variable_name" => return true,
+            _ => return true,
+        }
+    }
     pub fn traverse(&mut self) -> Result<(), ()> {
         let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main) file
         let t = file.tree.clone();
@@ -126,7 +162,7 @@ impl<'a> Analyzer <'a>{
         loop {
             if visited {
                 if cursor.goto_next_sibling() {
-                    self.enter_node(&mut cursor.clone(), &file, tabs)?;
+                    self.enter_node(&mut cursor.clone(), &file);
                     visited = false;
                 } else if cursor.goto_parent() {
                     tabs -= 1;
@@ -135,7 +171,7 @@ impl<'a> Analyzer <'a>{
                     break;
                 }
             } else if cursor.goto_first_child() {
-                self.enter_node(&mut cursor.clone(), &file, tabs)?;
+                self.enter_node(&mut cursor.clone(), &file);
                 tabs += 1;
             } else {
                 visited = true;
@@ -201,38 +237,6 @@ impl<'a> Analyzer <'a>{
         }
     }
 
-    // call with a cloned TreeCursor to not lose our place in the traversal
-    fn enter_node(&mut self, cursor: &mut TreeCursor, file: &File, tabs: usize) -> Result<(), ()> {
-        let node = cursor.node();
-        //println!("{}", node.to_sexp());
-        if node.is_named() && !node.is_extra() {
-            println!("{}Kind: {}", "  ".repeat(tabs), node.kind());
-            println!(
-                "{}Code: {}",
-                "  ".repeat(tabs),
-                node_to_string(&node, file.source_code)
-            );
-        }
-        match node.kind() {
-            "function_call_expression" => println!(
-                "{}Name: {:?}",
-                "  ".repeat(tabs),
-                self.find_name(&mut cursor.clone(), file)
-            ),
-            "method_call_expression" => println!(
-                "{}Name: {:?}",
-                "  ".repeat(tabs),
-                self.find_name(&mut cursor.clone(), file)
-            ),
-            "variable_name" => println!(
-                "{}Name: {:?}",
-                "  ".repeat(tabs),
-                self.find_name(&mut cursor.clone(), file)
-            ),
-            _ => (),
-        }
-        Ok(())
-    }
 }
 
 fn main() -> Result<(), ()> {

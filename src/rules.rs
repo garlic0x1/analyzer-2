@@ -32,3 +32,8 @@ struct Sanitizer {
     // specify which args sanitize the function
     args: Vec<u32>,
 }
+
+impl Rules {
+    pub fn new(data_file: &str) -> Self {
+    }
+}
