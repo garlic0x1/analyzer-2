@@ -17,7 +17,7 @@ pub struct Context {
 }
 
 // variable scope, same as old context, but with file
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Scope<'a> {
     global: bool,
     file: &'a File<'a>,
@@ -25,19 +25,16 @@ pub struct Scope<'a> {
     function: Option<String>,
 }
 
-//#[derive(Debug)]
+#[derive(PartialEq, Eq, Hash)]
 pub enum Taint<'a> {
     Variable {
         // name of var
         name: String,
         scope: Scope<'a>,
-        // allow us to connect to graph
-        parent: &'a Vertex<'a>,
     },
     Function {
         name: String,
-        // allow us to connect to graph
-        parent: Box<Vertex<'a>>,
+        scope: Scope<'a>,
     },
     // top of graph
     Source {
@@ -50,7 +47,7 @@ pub enum Taint<'a> {
 pub struct Analyzer<'a> {
     files: Vec<resolver::File<'a>>,
     rules: rules::Rules,
-    graph: Graph,
+    graph: Graph<'a>,
     context_stack: Vec<Context>,
     taints: Vec<Taint<'a>>,
 }

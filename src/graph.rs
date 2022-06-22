@@ -1,7 +1,10 @@
 use daggy::Dag;
+use std::collections::HashMap;
 use super::*;
 
-pub struct Graph {
+pub struct Graph<'a> {
+    dag: Dag<Vertex<'a>, Arc>,
+    leaves: HashMap<&'a Taint<'a>, &'a Vertex<'a>>,
 }
 
 pub enum Vertex<'a> {
@@ -26,11 +29,15 @@ pub struct Arc {
     context_stack: Vec<Context>,
 }
 
-impl Graph {
+impl<'a> Graph<'a> {
     pub fn new() -> Self {
-        Self {  } 
+        Self { 
+            dag: Dag::new(),
+            leaves: HashMap::new(),
+        } 
     }
 
     pub fn push(&mut self, parent_taint: &Taint) {
+        let leaf = self.leaves.get(parent_taint);
     }
 }

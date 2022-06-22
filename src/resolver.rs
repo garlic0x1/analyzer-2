@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use tree_sitter::*;
 
 #[derive(Clone)]
@@ -28,6 +29,19 @@ pub struct File<'a> {
     pub source_code: &'a str,
     pub tree: &'a Tree,
     pub resolved: HashMap<String, Resolved<'a>>,
+}
+
+impl<'a> Hash for File<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.filename.hash(state);
+    }
+}
+
+impl<'a> Eq for File<'a> {}
+impl<'a> PartialEq for File<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        return self.filename == other.filename
+    }
 }
 
 impl<'a> File<'a> {
