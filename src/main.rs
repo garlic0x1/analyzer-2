@@ -68,8 +68,6 @@ struct Arc {
 #[derive(Debug)]
 enum Taint {
     Variable {
-        // type of vuln (sqli, rce, etc)
-        vulns: Vec<String>,
         // name of var
         name: String,
         scope: Scope,
@@ -78,14 +76,12 @@ enum Taint {
     },
     Function {
         name: String,
-        vulns: Vec<String>,
         // allow us to connect to graph
         parent: Box<Vertex>,
     },
     // top of graph
     Source {
         name: String,
-        vulns: Vec<String>,
     },
     // these are the results (storing in this enum for graph)
     Sink {},
@@ -104,14 +100,16 @@ struct Analyzer<'a> {
 
 impl<'a> Analyzer<'a> {
     pub fn new(files: Vec<File<'a>>, rules: rules::Rules) -> Self {
-        Self {
+        let mut s = Self {
             files,
             rules,
             graph: Dag::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
             data_map: Vec::new(),
-        }
+        };
+        s.load_sources();
+        return s;
     }
 
     pub fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &File) {
@@ -139,6 +137,13 @@ impl<'a> Analyzer<'a> {
         }
     }
 
+    fn load_sources(&mut self) {
+        for source in self.rules.sources.iter() {
+            let taint = Taint::Source { name: source.name.clone() };
+            self.taints.push(taint);
+        }
+    }
+
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, file: &File) -> bool {
         let node = cursor.node();
@@ -148,9 +153,11 @@ impl<'a> Analyzer<'a> {
             "method_call_expression" => return true,
             "variable_name" => {
                 if let Ok(var_name) = self.find_name(&mut cursor.clone(), &file) {
+                    println!("entering {}", var_name);
                     for t in self.taints.iter() {
                         match t {
-                            Taint::Variable { vulns, name, .. } | Taint::Source { name, vulns, .. } => {
+                            Taint::Variable { name, .. } | Taint::Source { name, .. } => {
+                    println!("matched {}", var_name);
                                 if name == &var_name {
                                     self.trace_taint(cursor);
                                     return true;
@@ -204,6 +211,7 @@ impl<'a> Analyzer<'a> {
                     visited = false;
                     if cursor.node().kind() == "name" {
                         let s: String = node_to_string(&cursor.node(), file.source_code);
+                    println!("found name {}", s);
                         return Ok(s);
                     }
                 } else if cursor.goto_parent() {
@@ -213,6 +221,7 @@ impl<'a> Analyzer<'a> {
             } else if cursor.goto_first_child() {
                 if cursor.node().kind() == "name" {
                     let s: String = node_to_string(&cursor.node(), file.source_code);
+                    println!("found name {}", s);
                     return Ok(s);
                 }
             } else {

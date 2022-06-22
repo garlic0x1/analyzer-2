@@ -2,16 +2,16 @@ use std::collections::HashMap;
 
 // a set of rules to alert for
 pub struct Rules {
-    sources: Vec<Source>,
+    pub sources: Vec<Source>,
 }
 
-struct Source {
-    name: String,
+pub struct Source {
+    pub name: String,
     // sinks this source is dangerous in
-    sinks: Vec<Sink>,
+    pub sinks: Vec<Sink>,
 }
 
-struct Sink {
+pub struct Sink {
     name: String,
     // specify which args are dangerous
     args: Vec<u32>,
