@@ -13,7 +13,7 @@ pub enum Vertex<'a> {
         // extra info
         code: String,
         position: Point,
-        context: Context,
+        context_stack: Vec<Context>,
     },
 
     Resolved,
@@ -29,5 +29,8 @@ pub struct Arc {
 impl Graph {
     pub fn new() -> Self {
         Self {  } 
+    }
+
+    pub fn push(&mut self, parent_taint: &Taint) {
     }
 }
