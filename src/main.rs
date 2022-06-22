@@ -4,6 +4,7 @@ use std::fs;
 use tree_sitter::*;
 
 pub mod resolver;
+pub mod rules;
 
 // not same thing as context in last version
 // this is to store hook/html stuff
@@ -94,6 +95,7 @@ struct Vuln {}
 
 struct Analyzer<'a> {
     files: Vec<resolver::File<'a>>,
+    rules: rules::Rules,
     graph: Dag<Vertex, Arc>,
     context_stack: Vec<Context>,
     taints: Vec<Taint>,
@@ -101,21 +103,16 @@ struct Analyzer<'a> {
 }
 
 impl<'a> Analyzer<'a> {
-    pub fn new(files: Vec<File<'a>>) -> Self {
+    pub fn new(files: Vec<File<'a>>, rules: rules::Rules) -> Self {
         Self {
             files,
+            rules,
             graph: Dag::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
             data_map: Vec::new(),
         }
     }
-
-    /*
-    pub fn load_map() -> Result<(), ()> {
-        Err(())
-    }
-    */
 
     pub fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &File) {
         let mut visited = false;
@@ -153,14 +150,7 @@ impl<'a> Analyzer<'a> {
                 if let Ok(var_name) = self.find_name(&mut cursor.clone(), &file) {
                     for t in self.taints.iter() {
                         match t {
-                            Taint::Variable {
-                                vulns,
-                                name,
-                                scope,
-                                parent,
-                            } => {
-                                
-                            
+                            Taint::Variable { vulns, name, .. } | Taint::Source { name, vulns, .. } => {
                                 if name == &var_name {
                                     self.trace_taint(cursor);
                                     return true;
@@ -262,6 +252,7 @@ impl<'a> Analyzer<'a> {
 }
 
 fn main() -> Result<(), ()> {
+    let ruleset = rules::Rules::new("");
     let source_code = fs::read_to_string("test.php").expect("failed to read file");
     let mut parser = Parser::new();
     parser
@@ -273,7 +264,7 @@ fn main() -> Result<(), ()> {
     let mut files = Vec::new();
     files.push(file);
 
-    let mut analyzer = Analyzer::new(files);
+    let mut analyzer = Analyzer::new(files, ruleset);
     analyzer.traverse()?;
     Ok(())
 }

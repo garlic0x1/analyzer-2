@@ -35,5 +35,8 @@ struct Sanitizer {
 
 impl Rules {
     pub fn new(data_file: &str) -> Self {
+        Self {
+            sources: vec![Source {name: "_GET".to_string(), sinks: Vec::new()}],
+        }
     }
 }
