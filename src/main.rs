@@ -100,7 +100,7 @@ struct Analyzer<'a> {
     data_map: Vec<Vuln>,
 }
 
-impl<'a> Analyzer <'a>{
+impl<'a> Analyzer<'a> {
     pub fn new(files: Vec<File<'a>>) -> Self {
         Self {
             files,
@@ -123,7 +123,7 @@ impl<'a> Analyzer <'a>{
             if visited {
                 if cursor.goto_next_sibling() {
                     let cont = self.enter_node(&mut cursor.clone(), &file);
-                    if  cont {
+                    if cont {
                         visited = true;
                         cursor.goto_parent();
                         continue;
@@ -149,9 +149,31 @@ impl<'a> Analyzer <'a>{
             "function_definition" | "method_definition" | "class_definition" => return false,
             "function_call_expression" => return true,
             "method_call_expression" => return true,
-            "variable_name" => return true,
+            "variable_name" => {
+                if let Ok(var_name) = self.find_name(&mut cursor.clone(), &file) {
+                    for t in self.taints.iter() {
+                        match t {
+                            Taint::Variable {
+                                vulns,
+                                name,
+                                scope,
+                                parent,
+                            } => {
+                                
+                            
+                                if name == &var_name {
+                                    self.trace_taint(cursor);
+                                    return true;
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+            }
             _ => return true,
         }
+        return true;
     }
     pub fn traverse(&mut self) -> Result<(), ()> {
         let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main) file
@@ -212,6 +234,7 @@ impl<'a> Analyzer <'a>{
     }
 
     fn trace_taint(&mut self, cursor: &mut TreeCursor) {
+        println!("tracing taint");
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "assignment_expression" => {
@@ -236,16 +259,15 @@ impl<'a> Analyzer <'a>{
             }
         }
     }
-
 }
 
 fn main() -> Result<(), ()> {
     let source_code = fs::read_to_string("test.php").expect("failed to read file");
     let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_php::language())
-            .expect("Error loading PHP parsing support");
-        let tree: Tree = parser.parse(&source_code, None).unwrap();
+    parser
+        .set_language(tree_sitter_php::language())
+        .expect("Error loading PHP parsing support");
+    let tree: Tree = parser.parse(&source_code, None).unwrap();
     let mut file = File::new("filename".to_string(), &tree, &source_code);
     file.resolve();
     let mut files = Vec::new();

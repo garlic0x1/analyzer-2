@@ -1,12 +1,24 @@
-use tree_sitter::*;
 use std::collections::HashMap;
+use tree_sitter::*;
 
 #[derive(Clone)]
 pub enum Resolved<'a> {
-    Function { name: String, cursor: TreeCursor<'a> },
-    Class { name: String, cursor: TreeCursor<'a> },
-    Method { name: String, cursor: TreeCursor<'a> },
-    Property { name: String, cursor: TreeCursor<'a> },
+    Function {
+        name: String,
+        cursor: TreeCursor<'a>,
+    },
+    Class {
+        name: String,
+        cursor: TreeCursor<'a>,
+    },
+    Method {
+        name: String,
+        cursor: TreeCursor<'a>,
+    },
+    Property {
+        name: String,
+        cursor: TreeCursor<'a>,
+    },
 }
 
 #[derive(Clone)]
@@ -60,38 +72,38 @@ impl<'a> File<'a> {
         match node.kind() {
             "function_definition" => {
                 if let Ok(name) = self.find_name(&mut cursor.clone()) {
-                let value = Resolved::Function {
-                    name: name.clone(),
-                    cursor: cursor.clone(),
-                };
-                self.resolved.insert(name, value);
+                    let value = Resolved::Function {
+                        name: name.clone(),
+                        cursor: cursor.clone(),
+                    };
+                    self.resolved.insert(name, value);
                 }
             }
             "method_definition" => {
                 if let Ok(name) = self.find_name(&mut cursor.clone()) {
-                let value = Resolved::Method {
-                    name: name.clone(),
-                    cursor: cursor.clone(),
-                };
-                self.resolved.insert(name, value);
+                    let value = Resolved::Method {
+                        name: name.clone(),
+                        cursor: cursor.clone(),
+                    };
+                    self.resolved.insert(name, value);
                 }
             }
             "property_name" => {
                 if let Ok(name) = self.find_name(&mut cursor.clone()) {
-                let value = Resolved::Property {
-                    name: name.clone(),
-                    cursor: cursor.clone(),
-                };
-                self.resolved.insert(name, value);
+                    let value = Resolved::Property {
+                        name: name.clone(),
+                        cursor: cursor.clone(),
+                    };
+                    self.resolved.insert(name, value);
                 }
             }
             "class_definition" => {
                 if let Ok(name) = self.find_name(&mut cursor.clone()) {
-                let value = Resolved::Class {
-                    name: name.clone(),
-                    cursor: cursor.clone(),
-                };
-                self.resolved.insert(name, value);
+                    let value = Resolved::Class {
+                        name: name.clone(),
+                        cursor: cursor.clone(),
+                    };
+                    self.resolved.insert(name, value);
                 }
             }
             _ => (),
