@@ -125,9 +125,14 @@ impl<'a> Analyzer<'a> {
                 if cursor.goto_next_sibling() {
                     let cont = self.enter_node(&mut cursor.clone(), &file);
                     if !cont {
+                        if cursor.goto_next_sibling() {
+                            visited = false;
+                            continue;
+                        } else if cursor.goto_parent() {
+
                         visited = true;
-                        cursor.goto_parent();
                         continue;
+                        }
                     }
                     visited = false;
                 } else if cursor.goto_parent() {
@@ -167,7 +172,7 @@ impl<'a> Analyzer<'a> {
                             Taint::Variable { name, .. } | Taint::Source { name, .. } => {
                                 println!("matched {}", var_name);
                                 if name == &var_name {
-                                    self.trace_taint(cursor);
+                                    self.trace_taint(cursor, &file);
                                     return true;
                                 }
                             }
@@ -240,20 +245,26 @@ impl<'a> Analyzer<'a> {
         Err(())
     }
 
-    fn trace_taint(&mut self, cursor: &mut TreeCursor) {
+    fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &File) {
         println!("tracing taint");
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "assignment_expression" => {
+                    let name = self.find_name(&mut cursor.clone(), &file);
+                    println!("trace: [assignment] {:?}", name);
                     // get name from variable_name.name or equivalent
                     // pass taints with unsanitized vuln categories, or none at all.
                 }
                 "function_call_expression" => {
                     // get name from child 0
+                    let name = self.find_name(&mut cursor.clone(), &file);
+                    println!("trace: {:?}", name);
                     // if sink break
                     // if sanitizer blacklist vuln
                 }
                 "method_call_expression" => {
+                    let name = self.find_name(&mut cursor.clone(), &file);
+                    println!("trace: {:?}", name);
                     // get name from child 0
                     // if sink break
                     // if sanitizer blacklist vuln
