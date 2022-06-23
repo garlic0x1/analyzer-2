@@ -186,9 +186,9 @@ impl<'a> Analyzer<'a> {
                 "assignment_expression" => {
                     if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
                         let taint = Taint::Variable {
-                                name,
-                                scope: self.current_scope.clone(),
-                            };
+                            name,
+                            scope: self.current_scope.clone(),
+                        };
                         let vertex = Vertex::Assignment {
                             kind: "assignment_expression".to_string(),
                             tainting: taint.clone(),
@@ -196,7 +196,7 @@ impl<'a> Analyzer<'a> {
                         let arc = Arc {
                             context_stack: Vec::new(),
                         };
-                        
+
                         self.taints.push(taint);
                         self.graph.push(vertex, arc, parent_taint.clone());
                         //println!("trace: [assignment] {:?}", name);
@@ -209,14 +209,14 @@ impl<'a> Analyzer<'a> {
                     let name = self.find_name(&mut cursor.clone(), &file);
                     let vertex = Vertex::Unresolved {
                         name: name.unwrap(),
+                        // this is not good only temporary
+                        breaks: (cursor.node().parent().unwrap().kind() == "expression_statement"),
                     };
                     let arc = Arc {
                         context_stack: Vec::new(),
                     };
                     self.graph.push(vertex, arc, parent_taint.clone());
-                    //println!("trace: {:?}", name);
                     // if sink break
-                    // if sanitizer blacklist vuln
                 }
                 "method_call_expression" => {
                     let name = self.find_name(&mut cursor.clone(), &file);

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 pub struct Graph<'a> {
     dag: Dag<Vertex<'a>, Arc>,
+    // last node that modified a taint
     leaves: HashMap<Taint<'a>, daggy::NodeIndex>,
 }
 
@@ -22,6 +23,7 @@ pub enum Vertex<'a> {
     },
     Unresolved {
         name: String,
+        breaks: bool,
     },
     Break {
         name: String,
@@ -56,8 +58,13 @@ impl<'a> Graph<'a> {
                     Vertex::Assignment { tainting, .. } => {
                         self.leaves.insert(tainting, id.1);
                     }
+                    Vertex::Unresolved { name, breaks } => {
+                        if !breaks {
+                            self.leaves.insert(parent_taint, id.1);
+                        }
+                    }
                     _ => {
-                        self.leaves.insert(parent_taint, id.1);
+                        //self.leaves.insert(parent_taint, id.1);
                     }
                 }
             }
@@ -68,7 +75,7 @@ impl<'a> Graph<'a> {
                         self.leaves.insert(tainting, id);
                     }
                     _ => {
-                        self.leaves.insert(parent_taint, id);
+                        //self.leaves.insert(parent_taint, id);
                     }
                 }
             }
