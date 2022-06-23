@@ -18,14 +18,6 @@ pub struct Context {
 
 // variable scope, same as old context, but with file
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Scope<'a> {
-    global: bool,
-    file: &'a File<'a>,
-    class: Option<String>,
-    function: Option<String>,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Taint<'a> {
     Variable {
         // name of var
@@ -44,19 +36,34 @@ pub enum Taint<'a> {
     Sink {},
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Scope<'a> {
+    global: bool,
+    file: Option<&'a File<'a>>,
+    class: Option<String>,
+    function: Option<String>,
+}
+
 pub struct Analyzer<'a> {
     files: Vec<resolver::File<'a>>,
     rules: rules::Rules,
     graph: Graph<'a>,
     context_stack: Vec<Context>,
     taints: Vec<Taint<'a>>,
+    current_scope: Scope<'a>,
 }
 
 impl<'a> Analyzer<'a> {
     pub fn new(files: Vec<File<'a>>, rules: rules::Rules) -> Self {
         let mut s = Self {
-            files,
+            files: files.clone(),
             rules,
+            current_scope: Scope{
+                global: false,
+                file: None,
+                class: None,
+                function: None,
+            },
             graph: Graph::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
@@ -177,23 +184,34 @@ impl<'a> Analyzer<'a> {
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "assignment_expression" => {
-                    let name = self.find_name(&mut cursor.clone(), &file);
+                    if let Ok(name) = self.find_name(&mut cursor.clone(), &file){
                     let vertex = Vertex::Assignment {
                         kind: "assignment_expression".to_string(),
-                        tainting: Taint::Sink {  },
+                        tainting: Taint::Variable { 
+                            name,
+                            scope: self.current_scope.clone(),
+                        },
                     };
                     let arc = Arc {
                         context_stack: Vec::new(),
                     };
                     self.graph.push(vertex, arc, parent_taint.clone());
-                    println!("trace: [assignment] {:?}", name);
+                    //println!("trace: [assignment] {:?}", name);
+                    }
                     // get name from variable_name.name or equivalent
                     // pass taints with unsanitized vuln categories, or none at all.
                 }
                 "function_call_expression" => {
                     // get name from child 0
                     let name = self.find_name(&mut cursor.clone(), &file);
-                    println!("trace: {:?}", name);
+                    let vertex = Vertex::Unresolved {
+                        name: name.unwrap(),
+                    };
+                    let arc = Arc {
+                        context_stack: Vec::new(),
+                    };
+                    self.graph.push(vertex, arc, parent_taint.clone());
+                    //println!("trace: {:?}", name);
                     // if sink break
                     // if sanitizer blacklist vuln
                 }

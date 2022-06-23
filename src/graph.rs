@@ -17,9 +17,15 @@ pub enum Vertex<'a> {
         //context_stack: Vec<Context>,
     },
 
-    Resolved,
-    Unresolved,
-    Break,
+    Resolved{
+        name: String,
+    },
+    Unresolved{
+        name: String,
+    },
+    Break{
+        name: String,
+    },
 }
 
 #[derive(Clone, Debug)]
