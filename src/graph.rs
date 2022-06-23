@@ -4,20 +4,17 @@ use super::*;
 
 pub struct Graph<'a> {
     dag: Dag<Vertex<'a>, Arc>,
-    leaves: HashMap<&'a Taint<'a>, daggy::NodeIndex>,
+    leaves: HashMap<Taint<'a>, daggy::NodeIndex>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Vertex<'a> {
     Assignment {
         // type of assingment (assign, append, return, pass, etc)
         kind: String,
         // taint to create
-        tainting: &'a Taint<'a>,
-        // extra info
-        code: String,
-        position: Point,
-        context_stack: Vec<Context>,
+        tainting: Taint<'a>,
+        //context_stack: Vec<Context>,
     },
 
     Resolved,
@@ -25,9 +22,10 @@ pub enum Vertex<'a> {
     Break,
 }
 
+#[derive(Clone, Debug)]
 pub struct Arc {
     // path of hooks, conditionals, and loops
-    context_stack: Vec<Context>,
+    pub context_stack: Vec<Context>,
 }
 
 impl<'a> Graph<'a> {
@@ -38,8 +36,13 @@ impl<'a> Graph<'a> {
         } 
     }
 
-    pub fn push(&mut self, vertex: Vertex<'a>, arc: Arc, parent_taint: &'a Taint<'a>) {
-        let leaf = self.leaves.get(parent_taint);
+    pub fn dump(&self) -> String {
+        let dot = petgraph::dot::Dot::new(&self.dag);
+        format!("{:?}", dot)
+    }
+
+    pub fn push(&mut self, vertex: Vertex<'a>, arc: Arc, parent_taint: Taint<'a>) {
+        let leaf = self.leaves.get(&parent_taint);
         match leaf {
             Some(leaf) => {
                 let id = self.dag.add_child(*leaf, arc, vertex.clone());

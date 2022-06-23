@@ -16,6 +16,7 @@ name = "analyzer"
 version = "0.1.0"
 dependencies = [
  "daggy",
+ "petgraph",
  "tree-sitter",
  "tree-sitter-php",
 ]

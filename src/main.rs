@@ -17,7 +17,7 @@ pub struct Context {
 }
 
 // variable scope, same as old context, but with file
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Scope<'a> {
     global: bool,
     file: &'a File<'a>,
@@ -25,7 +25,7 @@ pub struct Scope<'a> {
     function: Option<String>,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Taint<'a> {
     Variable {
         // name of var
@@ -128,8 +128,8 @@ impl<'a> Analyzer<'a> {
                         match t {
                             Taint::Variable { name, .. } | Taint::Source { name, .. } => {
                                 println!("matched {}", var_name);
-                                if name == &var_name {
-                                    self.trace_taint(cursor, &file);
+                                if name.as_str() == var_name {
+                                    self.trace_taint(cursor, &file, t.clone());
                                     return true;
                                 }
                             }
@@ -172,12 +172,20 @@ impl<'a> Analyzer<'a> {
         Err(())
     }
 
-    fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &File) {
+    fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &File, parent_taint: Taint<'a>) {
         println!("tracing taint");
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "assignment_expression" => {
                     let name = self.find_name(&mut cursor.clone(), &file);
+                    let vertex = Vertex::Assignment {
+                        kind: "assignment_expression".to_string(),
+                        tainting: Taint::Sink {  },
+                    };
+                    let arc = Arc {
+                        context_stack: Vec::new(),
+                    };
+                    self.graph.push(vertex, arc, parent_taint.clone());
                     println!("trace: [assignment] {:?}", name);
                     // get name from variable_name.name or equivalent
                     // pass taints with unsanitized vuln categories, or none at all.
@@ -220,6 +228,7 @@ fn main() {
 
     let mut analyzer = Analyzer::new(files, ruleset);
     analyzer.build_graph();
+    println!("{}", analyzer.graph.dump());
 }
 
 fn node_to_string(node: &Node, source: &str) -> String {

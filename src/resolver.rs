@@ -1,3 +1,4 @@
+use std::fmt;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use tree_sitter::*;
@@ -23,12 +24,21 @@ pub enum Resolved<'a> {
     },
 }
 
+
+
 #[derive(Clone)]
 pub struct File<'a> {
     pub filename: String,
     pub source_code: &'a str,
     pub tree: &'a Tree,
     pub resolved: HashMap<String, Resolved<'a>>,
+}
+impl<'a> fmt::Debug for File<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Resolved")
+            .field("filename", &self)
+            .finish()
+    }
 }
 
 impl<'a> Hash for File<'a> {
