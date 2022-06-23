@@ -1,12 +1,12 @@
-use crate::resolver::*;
 use crate::graph::*;
+use crate::resolver::*;
 use daggy::Dag;
 use std::fs;
 use tree_sitter::*;
 
+pub mod graph;
 pub mod resolver;
 pub mod rules;
-pub mod graph;
 
 // not same thing as context in last version
 // this is to store hook/html stuff
@@ -58,7 +58,7 @@ impl<'a> Analyzer<'a> {
         let mut s = Self {
             files: files.clone(),
             rules,
-            current_scope: Scope{
+            current_scope: Scope {
                 global: false,
                 file: None,
                 class: None,
@@ -102,9 +102,8 @@ impl<'a> Analyzer<'a> {
                             visited = false;
                             continue;
                         } else if cursor.goto_parent() {
-
-                        visited = true;
-                        continue;
+                            visited = true;
+                            continue;
                         }
                     }
                     visited = false;
@@ -184,19 +183,22 @@ impl<'a> Analyzer<'a> {
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "assignment_expression" => {
-                    if let Ok(name) = self.find_name(&mut cursor.clone(), &file){
-                    let vertex = Vertex::Assignment {
-                        kind: "assignment_expression".to_string(),
-                        tainting: Taint::Variable { 
-                            name,
-                            scope: self.current_scope.clone(),
-                        },
-                    };
-                    let arc = Arc {
-                        context_stack: Vec::new(),
-                    };
-                    self.graph.push(vertex, arc, parent_taint.clone());
-                    //println!("trace: [assignment] {:?}", name);
+                    if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
+                        let taint = Taint::Variable {
+                                name,
+                                scope: self.current_scope.clone(),
+                            };
+                        let vertex = Vertex::Assignment {
+                            kind: "assignment_expression".to_string(),
+                            tainting: taint.clone(),
+                        };
+                        let arc = Arc {
+                            context_stack: Vec::new(),
+                        };
+                        
+                        self.taints.push(taint);
+                        self.graph.push(vertex, arc, parent_taint.clone());
+                        //println!("trace: [assignment] {:?}", name);
                     }
                     // get name from variable_name.name or equivalent
                     // pass taints with unsanitized vuln categories, or none at all.

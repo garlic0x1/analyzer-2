@@ -1,6 +1,6 @@
+use super::*;
 use daggy::Dag;
 use std::collections::HashMap;
-use super::*;
 
 pub struct Graph<'a> {
     dag: Dag<Vertex<'a>, Arc>,
@@ -17,13 +17,13 @@ pub enum Vertex<'a> {
         //context_stack: Vec<Context>,
     },
 
-    Resolved{
+    Resolved {
         name: String,
     },
-    Unresolved{
+    Unresolved {
         name: String,
     },
-    Break{
+    Break {
         name: String,
     },
 }
@@ -36,10 +36,10 @@ pub struct Arc {
 
 impl<'a> Graph<'a> {
     pub fn new() -> Self {
-        Self { 
+        Self {
             dag: Dag::new(),
             leaves: HashMap::new(),
-        } 
+        }
     }
 
     pub fn dump(&self) -> String {
@@ -55,21 +55,21 @@ impl<'a> Graph<'a> {
                 match vertex {
                     Vertex::Assignment { tainting, .. } => {
                         self.leaves.insert(tainting, id.1);
-                    },
+                    }
                     _ => {
                         self.leaves.insert(parent_taint, id.1);
-                    },
+                    }
                 }
-            },
+            }
             None => {
                 let id = self.dag.add_node(vertex.clone());
                 match vertex {
                     Vertex::Assignment { tainting, .. } => {
                         self.leaves.insert(tainting, id);
-                    },
+                    }
                     _ => {
                         self.leaves.insert(parent_taint, id);
-                    },
+                    }
                 }
             }
         }

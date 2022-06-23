@@ -1,11 +1,13 @@
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use tree_sitter::*;
 
 #[derive(Clone)]
 pub enum Resolved<'a> {
-    Root { cursor: TreeCursor<'a>, },
+    Root {
+        cursor: TreeCursor<'a>,
+    },
     Function {
         name: String,
         cursor: TreeCursor<'a>,
@@ -24,8 +26,6 @@ pub enum Resolved<'a> {
     },
 }
 
-
-
 #[derive(Clone)]
 pub struct File<'a> {
     pub filename: String,
@@ -35,9 +35,7 @@ pub struct File<'a> {
 }
 impl<'a> fmt::Debug for File<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Resolved")
-            .field("filename", &self)
-            .finish()
+        f.debug_struct("Resolved").field("filename", &self).finish()
     }
 }
 
@@ -50,13 +48,13 @@ impl<'a> Hash for File<'a> {
 impl<'a> Eq for File<'a> {}
 impl<'a> PartialEq for File<'a> {
     fn eq(&self, other: &Self) -> bool {
-        return self.filename == other.filename
+        return self.filename == other.filename;
     }
 }
 
 impl<'a> File<'a> {
     pub fn new(filename: String, tree: &'a Tree, source_code: &'a str) -> Self {
-        let mut  s = Self {
+        let mut s = Self {
             filename,
             source_code,
             tree: &tree,
@@ -73,7 +71,7 @@ impl<'a> File<'a> {
     // crawl tree and identify code blocks
     fn resolve(&mut self) {
         let mut cursor = self.tree.walk();
-        
+
         let resolved = Resolved::Root {
             cursor: cursor.clone(),
         };
