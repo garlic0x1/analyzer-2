@@ -135,7 +135,8 @@ impl<'a> Analyzer<'a> {
                             Taint::Variable { name, .. } | Taint::Source { name, .. } => {
                                 println!("matched {}", var_name);
                                 if name.as_str() == var_name {
-                                    self.trace_taint(cursor, &file, t.clone());
+                                    let taint = t.clone();
+                                    self.trace_taint(cursor, &file, taint);
                                     return true;
                                 }
                             }
