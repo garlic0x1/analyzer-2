@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyzer::*;
 use daggy::Dag;
 use std::collections::HashMap;
 use std::fmt;
