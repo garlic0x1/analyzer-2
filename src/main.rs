@@ -18,22 +18,11 @@ pub struct Context {
 
 // variable scope, same as old context, but with file
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Taint<'a> {
-    Variable {
-        // name of var
-        name: String,
-        scope: Scope<'a>,
-    },
-    Function {
-        name: String,
-        scope: Scope<'a>,
-    },
-    // top of graph
-    Source {
-        name: String,
-    },
-    // these are the results (storing in this enum for graph)
-    Sink {},
+pub struct Taint<'a> {
+    kind: String,
+    // name of var
+    name: String,
+    scope: Scope<'a>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -75,8 +64,15 @@ impl<'a> Analyzer<'a> {
 
     fn load_sources(&mut self) {
         for source in self.rules.sources.iter() {
-            let taint = Taint::Source {
+            let taint = Taint {
+                kind: "variable".to_string(),
                 name: source.name.clone(),
+                scope: Scope {
+                    global: true,
+                    file: None,
+                    class: None,
+                    function: None,
+                },
             };
             self.taints.push(taint);
         }
@@ -131,16 +127,13 @@ impl<'a> Analyzer<'a> {
                 if let Ok(var_name) = self.find_name(&mut cursor.clone(), &file) {
                     println!("entering {}", var_name);
                     for t in self.taints.iter() {
-                        match t {
-                            Taint::Variable { name, .. } | Taint::Source { name, .. } => {
-                                println!("matched {}", var_name);
-                                if name.as_str() == var_name {
-                                    let taint = t.clone();
-                                    self.trace_taint(cursor, &file, taint);
-                                    return true;
-                                }
+                        if t.kind == "variable" {
+                            println!("matched {}", var_name);
+                            if t.name.as_str() == var_name {
+                                let taint = t.clone();
+                                self.trace_taint(cursor, &file, taint);
+                                return true;
                             }
-                            _ => (),
                         }
                     }
                 }
@@ -180,10 +173,9 @@ impl<'a> Analyzer<'a> {
     }
 
     fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &File, parent_taint: Taint<'a>) {
-        println!("tracing taint");
-                        let arc = Arc {
-                            context_stack: Vec::new(),
-                        };
+        let arc = Arc {
+            context_stack: self.context_stack.clone(),
+        };
         let mut path: Vec<PathNode> = Vec::new();
         let mut vertex: Option<Vertex> = None;
         let mut child_taint: Option<Taint> = None;
@@ -191,34 +183,40 @@ impl<'a> Analyzer<'a> {
             match cursor.node().kind() {
                 "assignment_expression" => {
                     if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
-                        child_taint = Some(Taint::Variable {
+                        child_taint = Some(Taint {
+                            kind: "variable".to_string(),
                             name,
                             scope: self.current_scope.clone(),
                         });
                         vertex = Some(Vertex::Assignment {
+                            parent_taint: parent_taint.clone(),
                             kind: "assignment_expression".to_string(),
                             tainting: child_taint.clone().expect("eeeerrrrooorrr"),
                             path: path.clone(),
                         });
-
-                        //println!("trace: [assignment] {:?}", name);
+                        break;
                     }
-                    // get name from variable_name.name or equivalent
-                    // pass taints with unsanitized vuln categories, or none at all.
                 }
                 "function_call_expression" => {
-                    // get name from child 0
                     let name = self.find_name(&mut cursor.clone(), &file);
                     if let Ok(name) = name {
-                    path.push(PathNode { name: name.clone(), });
-                    vertex = Some(Vertex::Unresolved { name, path: path.clone() });
+                        path.push(PathNode { name: name.clone() });
+                        vertex = Some(Vertex::Unresolved {
+                            parent_taint: parent_taint.clone(),
+                            name,
+                            path: path.clone(),
+                        });
                     }
                 }
                 "method_call_expression" => {
                     let name = self.find_name(&mut cursor.clone(), &file);
                     if let Ok(name) = name {
-                    path.push(PathNode { name: name.clone(), });
-                    vertex = Some(Vertex::Unresolved { name, path: path.clone() });
+                        path.push(PathNode { name: name.clone() });
+                        vertex = Some(Vertex::Unresolved {
+                            parent_taint: parent_taint.clone(),
+                            name,
+                            path: path.clone(),
+                        });
                     }
                 }
                 "echo_statement" => {
@@ -229,10 +227,10 @@ impl<'a> Analyzer<'a> {
             }
         }
         if let Some(taint) = child_taint {
-                        self.taints.push(taint);
+            self.taints.push(taint);
         }
         if let Some(vertex) = vertex {
-                        self.graph.push(vertex, arc, parent_taint.clone());
+            self.graph.push(vertex, arc, parent_taint.clone());
         }
     }
 }
