@@ -94,7 +94,6 @@ impl<'a> File<'a> {
                 visited = true;
             }
         }
-        println!("Resolved functions {:?}", self.resolved.clone().into_keys());
     }
 
     fn resolve_node(&mut self, cursor: &TreeCursor<'a>) {

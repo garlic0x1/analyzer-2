@@ -125,10 +125,8 @@ impl<'a> Analyzer<'a> {
             "method_call_expression" => return true,
             "variable_name" => {
                 if let Ok(var_name) = self.find_name(&mut cursor.clone(), &file) {
-                    println!("entering {}", var_name);
                     for t in self.taints.iter() {
                         if t.kind == "variable" {
-                            println!("matched {}", var_name);
                             if t.name.as_str() == var_name {
                                 let taint = t.clone();
                                 self.trace_taint(cursor, &file, taint);
@@ -151,7 +149,6 @@ impl<'a> Analyzer<'a> {
                     visited = false;
                     if cursor.node().kind() == "name" {
                         let s: String = node_to_string(&cursor.node(), file.source_code);
-                        println!("found name {}", s);
                         return Ok(s);
                     }
                 } else if cursor.goto_parent() {
@@ -161,7 +158,6 @@ impl<'a> Analyzer<'a> {
             } else if cursor.goto_first_child() {
                 if cursor.node().kind() == "name" {
                     let s: String = node_to_string(&cursor.node(), file.source_code);
-                    println!("found name {}", s);
                     return Ok(s);
                 }
             } else {

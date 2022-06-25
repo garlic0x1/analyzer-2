@@ -12,12 +12,9 @@ pub struct Graph<'a> {
 #[derive(Clone)]
 pub enum Vertex<'a> {
     Assignment {
-        parent_taint: Taint<'a>,
-        // type of assingment (assign, append, return, pass, etc)
         kind: String,
-        // taint to create
+        parent_taint: Taint<'a>,
         tainting: Taint<'a>,
-        //context_stack: Vec<Context>,
         path: Vec<PathNode>,
     },
     Unresolved {
@@ -38,7 +35,7 @@ impl<'a> fmt::Debug for Vertex<'a> {
                 path,
             } => {
                 s.push_str(format!("[{}] {}", kind, tainting.name).as_str());
-                for n in path {
+                for n in path.iter().rev() {
                     s.push_str(format!(" <- {}", n.name).as_str());
                 }
                 s.push_str(format!(" <- {}", parent_taint.name).as_str());
@@ -48,7 +45,7 @@ impl<'a> fmt::Debug for Vertex<'a> {
                 name,
                 path,
             } => {
-                for n in path {
+                for n in path.iter().rev() {
                     s.push_str(format!("{} <- ", n.name).as_str());
                 }
                 s.push_str(format!("{}", parent_taint.name).as_str());
@@ -83,25 +80,18 @@ impl<'a> Graph<'a> {
     }
 
     pub fn push(&mut self, vertex: Vertex<'a>, arc: Arc, parent_taint: Taint<'a>) {
-        println!("debug123");
         let leaf = self.leaves.get(&parent_taint);
         match leaf {
             Some(leaf) => {
                 let id = self.dag.add_child(*leaf, arc, vertex.clone());
-                match vertex {
-                    Vertex::Assignment { tainting, .. } => {
-                        self.leaves.insert(tainting, id.1);
-                    }
-                    Vertex::Unresolved {
-                        parent_taint,
-                        name,
-                        path,
-                    } => {
-                        //self.leaves.insert(parent_taint, id.1);
-                    }
-                    _ => {
-                        //self.leaves.insert(parent_taint, id.1);
-                    }
+                if let Vertex::Assignment {
+                    kind,
+                    parent_taint,
+                    tainting,
+                    path,
+                } = vertex
+                {
+                    self.leaves.insert(tainting, id.1);
                 }
             }
             None => {
