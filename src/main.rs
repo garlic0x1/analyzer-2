@@ -1,7 +1,5 @@
 use crate::analyzer::*;
-use crate::graph::*;
 use crate::resolver::*;
-use daggy::Dag;
 use std::fs;
 use tree_sitter::*;
 

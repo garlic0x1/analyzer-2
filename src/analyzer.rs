@@ -3,8 +3,6 @@ use crate::node_to_string;
 use crate::resolver;
 use crate::resolver::*;
 use crate::rules;
-use daggy::Dag;
-use std::fs;
 use tree_sitter::*;
 
 // not same thing as context in last version
@@ -15,7 +13,6 @@ pub struct Context {
     name: String,
 }
 
-// variable scope, same as old context, but with file
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Taint<'a> {
     pub kind: String,
@@ -102,7 +99,7 @@ impl<'a> Analyzer<'a> {
                     }
                     visited = false;
                 } else if cursor.goto_parent() {
-                    //self.leave_node(&cursor.node(), &mut cursor.clone(), tabs)?;
+                    self.leave_node(&mut cursor.clone(), &file);
                 } else {
                     break;
                 }
@@ -117,10 +114,13 @@ impl<'a> Analyzer<'a> {
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, file: &File) -> bool {
         let node = cursor.node();
+        println!("kind: {}", node.kind());
         match node.kind() {
-            "function_definition" | "method_definition" | "class_definition" => return false,
-            "function_call_expression" => return true,
-            "method_call_expression" => return true,
+            // return false to not crawl into these
+            "function_definition" | "method_declaration" | "class_declaration" => return false,
+            // these will find resolved funcs and crawl them too
+            "function_call_expression" | "method_call_expression"  => return true,
+            // if this is a taint, trace it
             "variable_name" => {
                 if let Ok(var_name) = self.find_name(&mut cursor.clone(), &file) {
                     for t in self.taints.iter() {
@@ -134,9 +134,26 @@ impl<'a> Analyzer<'a> {
                     }
                 }
             }
+            "if_statement" | "do_statement" | "for_statement" => {
+                self.context_stack.push(Context {
+                    kind: node.kind().to_string(),
+                    name: node_to_string(&node, &file.source_code),
+                });
+            }
             _ => return true,
         }
         return true;
+    }
+
+    fn leave_node(&mut self, cursor: &mut TreeCursor, file: &File) {
+        let node = cursor.node();
+        println!("kind: {}", node.kind());
+        match node.kind() {
+            "if_statement" | "do_statement" | "for_statement" => {
+                self.context_stack.pop();
+            }
+            _ => ()
+        }
     }
 
     fn find_name(&self, cursor: &mut TreeCursor, file: &File) -> Result<String, ()> {
@@ -162,7 +179,6 @@ impl<'a> Analyzer<'a> {
                 visited = true;
             }
         }
-
         Err(())
     }
 

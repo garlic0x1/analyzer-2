@@ -86,10 +86,9 @@ impl<'a> Graph<'a> {
             Some(leaf) => {
                 let id = self.dag.add_child(*leaf, arc, vertex.clone());
                 if let Vertex::Assignment {
-                    kind,
                     parent_taint,
                     tainting,
-                    path,
+                    ..
                 } = vertex
                 {
                     self.leaves.insert(tainting, id.1);
