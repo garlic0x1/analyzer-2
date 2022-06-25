@@ -181,24 +181,26 @@ impl<'a> Analyzer<'a> {
 
     fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &File, parent_taint: Taint<'a>) {
         println!("tracing taint");
+                        let arc = Arc {
+                            context_stack: Vec::new(),
+                        };
+        let mut path: Vec<PathNode> = Vec::new();
+        let mut vertex: Option<Vertex> = None;
+        let mut child_taint: Option<Taint> = None;
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "assignment_expression" => {
                     if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
-                        let taint = Taint::Variable {
+                        child_taint = Some(Taint::Variable {
                             name,
                             scope: self.current_scope.clone(),
-                        };
-                        let vertex = Vertex::Assignment {
+                        });
+                        vertex = Some(Vertex::Assignment {
                             kind: "assignment_expression".to_string(),
-                            tainting: taint.clone(),
-                        };
-                        let arc = Arc {
-                            context_stack: Vec::new(),
-                        };
+                            tainting: child_taint.clone().expect("eeeerrrrooorrr"),
+                            path: path.clone(),
+                        });
 
-                        self.taints.push(taint);
-                        self.graph.push(vertex, arc, parent_taint.clone());
                         //println!("trace: [assignment] {:?}", name);
                     }
                     // get name from variable_name.name or equivalent
@@ -207,23 +209,17 @@ impl<'a> Analyzer<'a> {
                 "function_call_expression" => {
                     // get name from child 0
                     let name = self.find_name(&mut cursor.clone(), &file);
-                    let vertex = Vertex::Unresolved {
-                        name: name.unwrap(),
-                        // this is not good only temporary
-                        breaks: (cursor.node().parent().unwrap().kind() == "expression_statement"),
-                    };
-                    let arc = Arc {
-                        context_stack: Vec::new(),
-                    };
-                    self.graph.push(vertex, arc, parent_taint.clone());
-                    // if sink break
+                    if let Ok(name) = name {
+                    path.push(PathNode { name: name.clone(), });
+                    vertex = Some(Vertex::Unresolved { name, path: path.clone() });
+                    }
                 }
                 "method_call_expression" => {
                     let name = self.find_name(&mut cursor.clone(), &file);
-                    println!("trace: {:?}", name);
-                    // get name from child 0
-                    // if sink break
-                    // if sanitizer blacklist vuln
+                    if let Ok(name) = name {
+                    path.push(PathNode { name: name.clone(), });
+                    vertex = Some(Vertex::Unresolved { name, path: path.clone() });
+                    }
                 }
                 "echo_statement" => {
                     // sink
@@ -231,6 +227,12 @@ impl<'a> Analyzer<'a> {
                 }
                 _ => (),
             }
+        }
+        if let Some(taint) = child_taint {
+                        self.taints.push(taint);
+        }
+        if let Some(vertex) = vertex {
+                        self.graph.push(vertex, arc, parent_taint.clone());
         }
     }
 }

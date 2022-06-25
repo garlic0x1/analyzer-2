@@ -16,18 +16,17 @@ pub enum Vertex<'a> {
         // taint to create
         tainting: Taint<'a>,
         //context_stack: Vec<Context>,
-    },
-
-    Resolved {
-        name: String,
+        path: Vec<PathNode>,
     },
     Unresolved {
         name: String,
-        breaks: bool,
+        path: Vec<PathNode>,
     },
-    Break {
-        name: String,
-    },
+}
+
+#[derive(Clone, Debug)]
+pub struct PathNode {
+    pub name: String,
 }
 
 #[derive(Clone, Debug)]
@@ -58,10 +57,8 @@ impl<'a> Graph<'a> {
                     Vertex::Assignment { tainting, .. } => {
                         self.leaves.insert(tainting, id.1);
                     }
-                    Vertex::Unresolved { name, breaks } => {
-                        if !breaks {
-                            self.leaves.insert(parent_taint, id.1);
-                        }
+                    Vertex::Unresolved { name, path } => {
+                            //self.leaves.insert(parent_taint, id.1);
                     }
                     _ => {
                         //self.leaves.insert(parent_taint, id.1);
