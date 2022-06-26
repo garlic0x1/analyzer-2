@@ -89,7 +89,8 @@ impl<'a> Graph<'a> {
 
     pub fn push(&mut self, vertex: Vertex<'a>, arc: Option<Arc>, parent_taint: Option<Taint<'a>>) {
         if let Some(parent) = parent_taint {
-            let leaf = self.leaves.get(&parent).expect("no parent found");
+            let debug = parent.name.clone();
+            let leaf = self.leaves.get(&parent).expect(&format!("no parent found {}", debug));
             let id = self
                 .dag
                 .add_child(*leaf, arc.expect("no arc provided"), vertex.clone());
@@ -105,6 +106,9 @@ impl<'a> Graph<'a> {
             let id = self.dag.add_node(vertex.clone());
             match vertex {
                 Vertex::Source { tainting, .. } => {
+                    self.leaves.insert(tainting, id);
+                }
+                Vertex::Assignment { tainting, .. } => {
                     self.leaves.insert(tainting, id);
                 }
                 _ => {

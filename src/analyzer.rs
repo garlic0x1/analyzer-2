@@ -68,7 +68,9 @@ impl<'a> Analyzer<'a> {
                     function: None,
                 },
             };
-            self.taints.push(taint);
+            self.taints.push(taint.clone());
+            let vertex = Vertex::Source { tainting: taint };
+            self.graph.push(vertex, None, None);
         }
     }
 
@@ -154,11 +156,6 @@ impl<'a> Analyzer<'a> {
                             if t.name.as_str() == var_name.clone() {
                                 let taint = t.clone();
 
-                                let vertex = Vertex::Source {
-                                    tainting: t.clone(),
-                                };
-                                println!("pushing source");
-                                self.graph.push(vertex, None, None);
                                 self.trace_taint(cursor, &file, taint);
                             }
                         }
@@ -211,10 +208,8 @@ impl<'a> Analyzer<'a> {
                         taints.push(taint.clone());
                         self.taints.push(taint.clone());
 
-                        /*
                         let vertex = Vertex::Source { tainting: taint };
                         self.graph.push(vertex, None, None);
-                        */
                     }
                 } else if cursor.goto_parent() {
                     if cursor.node().id() == start_node {
@@ -225,7 +220,8 @@ impl<'a> Analyzer<'a> {
                 }
             } else if cursor.goto_first_child() {
                     if cursor.node().kind() == "simple_parameter" {
-                        let s: String = node_to_string(&cursor.node(), file.source_code);
+                        let s: String = self.find_name(&mut cursor.clone(), &file).expect("no name");
+                        println!("taint name: {}", s.clone());
                         let taint = Taint {
                             kind: "source".to_string(),
                             name: s,
@@ -239,10 +235,8 @@ impl<'a> Analyzer<'a> {
                         taints.push(taint.clone());
                         self.taints.push(taint.clone());
 
-                        /*
                         let vertex = Vertex::Source { tainting: taint };
                         self.graph.push(vertex, None, None);
-                        */
                     }
             } else {
                 visited = true;
