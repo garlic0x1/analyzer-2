@@ -83,6 +83,7 @@ impl<'a> Analyzer<'a> {
     }
 
     fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &File) {
+        let start_node = cursor.node().id();
         let mut visited = false;
         loop {
             if visited {
@@ -100,6 +101,9 @@ impl<'a> Analyzer<'a> {
                     visited = false;
                 } else if cursor.goto_parent() {
                     self.leave_node(&mut cursor.clone(), &file);
+                    if cursor.node().id() == start_node {
+                        break;
+                    }
                 } else {
                     break;
                 }
@@ -114,21 +118,36 @@ impl<'a> Analyzer<'a> {
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, file: &File) -> bool {
         let node = cursor.node();
-        println!("kind: {}", node.kind());
+        //println!("kind: {}", node.kind());
         match node.kind() {
             // return false to not crawl into these
             "function_definition" | "method_declaration" | "class_declaration" => return false,
             // these will find resolved funcs and crawl them too
-            "function_call_expression" | "method_call_expression"  => return true,
+            "function_call_expression" | "method_call_expression"  => {
+                let name = self.find_name(&mut cursor.clone(), &file);
+                                println!("found func {:?}", name);
+                if let Ok(name) = name {
+                for f in &self.files.clone() {
+                    if let Some(resolved) = f.resolved.get(&name) {
+                        match resolved {
+                            Resolved::Function { name, cursor } => {
+                                println!("jumping to func {}", name);
+                                self.traverse_block(&mut cursor.clone(), f);
+                            },
+                            _ => ()
+                        }
+                    }
+                }
+                }
+            },
             // if this is a taint, trace it
             "variable_name" => {
                 if let Ok(var_name) = self.find_name(&mut cursor.clone(), &file) {
-                    for t in self.taints.iter() {
+                    for t in &self.taints.clone() {
                         if t.kind == "variable" {
                             if t.name.as_str() == var_name {
                                 let taint = t.clone();
                                 self.trace_taint(cursor, &file, taint);
-                                return true;
                             }
                         }
                     }
@@ -147,7 +166,7 @@ impl<'a> Analyzer<'a> {
 
     fn leave_node(&mut self, cursor: &mut TreeCursor, file: &File) {
         let node = cursor.node();
-        println!("kind: {}", node.kind());
+        //println!("kind: {}", node.kind());
         match node.kind() {
             "if_statement" | "do_statement" | "for_statement" => {
                 self.context_stack.pop();
