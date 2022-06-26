@@ -60,7 +60,7 @@ impl<'a> Analyzer<'a> {
     fn load_sources(&mut self) {
         for source in self.rules.sources.iter() {
             let taint = Taint {
-                kind: "variable".to_string(),
+                kind: "source".to_string(),
                 name: source.name.clone(),
                 scope: Scope {
                     global: true,
@@ -142,11 +142,21 @@ impl<'a> Analyzer<'a> {
             },
             // if this is a taint, trace it
             "variable_name" => {
-                if let Ok(var_name) = self.find_name(&mut cursor.clone(), &file) {
+                let result = self.find_name(&mut cursor.clone(), &file);
+                if let Ok(var_name) = &result {
                     for t in &self.taints.clone() {
                         if t.kind == "variable" {
-                            if t.name.as_str() == var_name {
+                            if &t.name == var_name {
                                 let taint = t.clone();
+                                self.trace_taint(cursor, &file, taint);
+                            }
+                        } else if t.kind == "source" {
+                            if t.name.as_str() == var_name.clone() {
+                                let taint = t.clone();
+
+                                let vertex = Vertex::Source { tainting: t.clone() };
+                                println!("pushing source");
+                                self.graph.push(vertex, None, None);
                                 self.trace_taint(cursor, &file, taint);
                             }
                         }
@@ -259,7 +269,7 @@ impl<'a> Analyzer<'a> {
             self.taints.push(taint);
         }
         if let Some(vertex) = vertex {
-            self.graph.push(vertex, arc, parent_taint.clone());
+            self.graph.push(vertex, Some(arc), Some(parent_taint.clone()));
         }
     }
 }

@@ -12,6 +12,9 @@ pub struct Graph<'a> {
 
 #[derive(Clone)]
 pub enum Vertex<'a> {
+    Source {
+        tainting: Taint<'a>,
+    },
     Assignment {
         kind: String,
         parent_taint: Taint<'a>,
@@ -29,6 +32,10 @@ impl<'a> fmt::Debug for Vertex<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = String::new();
         match self {
+            Self::Source { tainting } => {
+                s.push('$');
+                s.push_str(&tainting.name);
+            }
             Self::Assignment {
                 parent_taint,
                 kind,
@@ -80,11 +87,10 @@ impl<'a> Graph<'a> {
         format!("{:?}", dot)
     }
 
-    pub fn push(&mut self, vertex: Vertex<'a>, arc: Arc, parent_taint: Taint<'a>) {
-        let leaf = self.leaves.get(&parent_taint);
-        match leaf {
-            Some(leaf) => {
-                let id = self.dag.add_child(*leaf, arc, vertex.clone());
+    pub fn push(&mut self, vertex: Vertex<'a>, arc: Option<Arc>, parent_taint: Option<Taint<'a>>) {
+        if let Some(parent) = parent_taint {
+            let leaf = self.leaves.get(&parent).expect("no parent found");
+                let id = self.dag.add_child(*leaf, arc.expect("no arc provided"), vertex.clone());
                 if let Vertex::Assignment {
                     parent_taint,
                     tainting,
@@ -93,18 +99,16 @@ impl<'a> Graph<'a> {
                 {
                     self.leaves.insert(tainting, id.1);
                 }
-            }
-            None => {
+        } else {
                 let id = self.dag.add_node(vertex.clone());
                 match vertex {
-                    Vertex::Assignment { tainting, .. } => {
+                    Vertex::Source { tainting, .. } => {
                         self.leaves.insert(tainting, id);
                     }
                     _ => {
                         //self.leaves.insert(parent_taint, id);
                     }
                 }
-            }
         }
     }
 }
