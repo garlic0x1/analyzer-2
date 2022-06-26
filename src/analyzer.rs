@@ -16,7 +16,6 @@ pub struct Context {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Taint<'a> {
     pub kind: String,
-    // name of var
     pub name: String,
     pub scope: Scope<'a>,
 }
@@ -123,23 +122,24 @@ impl<'a> Analyzer<'a> {
             // return false to not crawl into these
             "function_definition" | "method_declaration" | "class_declaration" => return false,
             // these will find resolved funcs and crawl them too
-            "function_call_expression" | "method_call_expression"  => {
+            "function_call_expression" | "method_call_expression" => {
                 let name = self.find_name(&mut cursor.clone(), &file);
-                                println!("found func {:?}", name);
+                println!("found func {:?}", name);
                 if let Ok(name) = name {
-                for f in &self.files.clone() {
-                    if let Some(resolved) = f.resolved.get(&name) {
-                        match resolved {
-                            Resolved::Function { name, cursor } => {
-                                println!("jumping to func {}", name);
-                                self.traverse_block(&mut cursor.clone(), f);
-                            },
-                            _ => ()
+                    for f in &self.files.clone() {
+                        if let Some(resolved) = f.resolved.get(&name) {
+                            match resolved {
+                                Resolved::Function { name, cursor } => {
+                                    println!("jumping to func {}", name);
+                                    self.get_param_sources(&mut cursor.clone(), f);
+                                    self.traverse_block(&mut cursor.clone(), f);
+                                }
+                                _ => (),
+                            }
                         }
                     }
                 }
-                }
-            },
+            }
             // if this is a taint, trace it
             "variable_name" => {
                 let result = self.find_name(&mut cursor.clone(), &file);
@@ -154,7 +154,9 @@ impl<'a> Analyzer<'a> {
                             if t.name.as_str() == var_name.clone() {
                                 let taint = t.clone();
 
-                                let vertex = Vertex::Source { tainting: t.clone() };
+                                let vertex = Vertex::Source {
+                                    tainting: t.clone(),
+                                };
                                 println!("pushing source");
                                 self.graph.push(vertex, None, None);
                                 self.trace_taint(cursor, &file, taint);
@@ -181,8 +183,72 @@ impl<'a> Analyzer<'a> {
             "if_statement" | "do_statement" | "for_statement" => {
                 self.context_stack.pop();
             }
-            _ => ()
+            _ => (),
         }
+    }
+
+    fn get_param_sources(&mut self, cursor: &mut TreeCursor, file: &File) -> Vec<Taint<'a>> {
+        let start_node = cursor.node().id();
+        let mut taints = Vec::new();
+        let mut visited = false;
+        loop {
+            if visited {
+                if cursor.goto_next_sibling() {
+                    visited = false;
+                    if cursor.node().kind() == "simple_parameter" {
+                        let s = self.find_name(&mut cursor.clone(), file).expect("no name");
+                        println!("taint name: {}", s.clone());
+                        let taint = Taint {
+                            kind: "source".to_string(),
+                            name: s,
+                            scope: Scope {
+                                global: true,
+                                file: None,
+                                class: None,
+                                function: None,
+                            },
+                        };
+                        taints.push(taint.clone());
+                        self.taints.push(taint.clone());
+
+                        /*
+                        let vertex = Vertex::Source { tainting: taint };
+                        self.graph.push(vertex, None, None);
+                        */
+                    }
+                } else if cursor.goto_parent() {
+                    if cursor.node().id() == start_node {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else if cursor.goto_first_child() {
+                    if cursor.node().kind() == "simple_parameter" {
+                        let s: String = node_to_string(&cursor.node(), file.source_code);
+                        let taint = Taint {
+                            kind: "source".to_string(),
+                            name: s,
+                            scope: Scope {
+                                global: true,
+                                file: None,
+                                class: None,
+                                function: None,
+                            },
+                        };
+                        taints.push(taint.clone());
+                        self.taints.push(taint.clone());
+
+                        /*
+                        let vertex = Vertex::Source { tainting: taint };
+                        self.graph.push(vertex, None, None);
+                        */
+                    }
+            } else {
+                visited = true;
+            }
+        }
+        taints
     }
 
     fn find_name(&self, cursor: &mut TreeCursor, file: &File) -> Result<String, ()> {
@@ -269,7 +335,8 @@ impl<'a> Analyzer<'a> {
             self.taints.push(taint);
         }
         if let Some(vertex) = vertex {
-            self.graph.push(vertex, Some(arc), Some(parent_taint.clone()));
+            self.graph
+                .push(vertex, Some(arc), Some(parent_taint.clone()));
         }
     }
 }

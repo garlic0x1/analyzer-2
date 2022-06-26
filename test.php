@@ -5,8 +5,9 @@ query(intval($input));
 }
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
-function test() {
+function test($parameter) {
 	query(intval(htmlspecialchars($_GET[0])));
+	query(intval(htmlspecialchars($parameter)));
 }
 
 query(intval($filtered));
