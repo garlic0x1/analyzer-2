@@ -34,19 +34,12 @@ pub struct Analyzer<'a> {
     pub graph: Graph<'a>,
     context_stack: Vec<Context>,
     taints: Vec<Taint<'a>>,
-    current_scope: Scope<'a>,
 }
 impl<'a> Analyzer<'a> {
     pub fn new(files: Vec<File<'a>>, rules: rules::Rules) -> Self {
         let mut s = Self {
             files: files.clone(),
             rules,
-            current_scope: Scope {
-                global: false,
-                file: None,
-                class: None,
-                function: None,
-            },
             graph: Graph::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
@@ -196,10 +189,10 @@ impl<'a> Analyzer<'a> {
                         let s = self.find_name(&mut cursor.clone(), file).expect("no name");
                         println!("taint name: {}", s.clone());
                         let taint = Taint {
-                            kind: "source".to_string(),
+                            kind: "param".to_string(),
                             name: s,
                             scope: Scope {
-                                global: true,
+                                global: false,
                                 file: None,
                                 class: None,
                                 function: None,
@@ -285,7 +278,7 @@ impl<'a> Analyzer<'a> {
                         child_taint = Some(Taint {
                             kind: "variable".to_string(),
                             name,
-                            scope: self.current_scope.clone(),
+                            scope: self.current_scope(),
                         });
                         vertex = Some(Vertex::Assignment {
                             parent_taint: parent_taint.clone(),
@@ -332,5 +325,35 @@ impl<'a> Analyzer<'a> {
             self.graph
                 .push(vertex, Some(arc), Some(parent_taint.clone()));
         }
+    }
+
+    fn current_scope(&self, cursor: &mut TreeCursor, file: &'a File<'a>) -> Scope<'a> {
+        let mut scope = Scope {
+            global : false,
+            file : Some(file),
+            function : None,
+            class : None,
+        };
+
+        while cursor.goto_parent() {
+            match cursor.node().kind() {
+                "function_definition" | "method_declaration" => {
+                    let name = self.find_name(&mut cursor.clone(), &file).expect("no name");
+                    scope.function = Some(name);
+                },
+                "class_declaration" => {
+                    let name = self.find_name(&mut cursor.clone(), &file).expect("no name");
+                    scope.class = Some(name);
+                },
+                _ => ()
+            }
+        }
+
+        scope
+        }
+
+        while cursor.goto_parent() {
+            match cursor.node().kind() {
+                "assignment_expression" => {
     }
 }
