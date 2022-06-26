@@ -14,38 +14,40 @@ pub struct Context {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Taint<'a> {
+pub struct Taint {
     pub kind: String,
     pub name: String,
-    pub scope: Scope<'a>,
+    pub scope: Scope,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Scope<'a> {
+pub struct Scope {
     pub global: bool,
-    pub file: Option<&'a File<'a>>,
+    pub filename: Option<String>,
     pub class: Option<String>,
     pub function: Option<String>,
 }
 
 pub struct Analyzer<'a> {
-    files: Vec<resolver::File<'a>>,
+    files: &'a Vec<File<'a>>,
     rules: rules::Rules,
-    pub graph: Graph<'a>,
+    pub graph: Graph,
     context_stack: Vec<Context>,
-    taints: Vec<Taint<'a>>,
+    taints: Vec<Taint>,
 }
 impl<'a> Analyzer<'a> {
-    pub fn new(files: Vec<File<'a>>, rules: rules::Rules) -> Self {
+    pub fn new(files: &'a Vec<File<'a>>, rules: rules::Rules) -> Self {
         let mut s = Self {
-            files: files.clone(),
+            files,
             rules,
             graph: Graph::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
         };
         // initialize the taint vec with sources of input
+        let start_file_reference: &'a File<'a> = &s.files[0];
         s.load_sources();
+        s.build_graph(&start_file_reference);
         return s;
     }
 
@@ -56,7 +58,7 @@ impl<'a> Analyzer<'a> {
                 name: source.name.clone(),
                 scope: Scope {
                     global: true,
-                    file: None,
+                    filename: None,
                     class: None,
                     function: None,
                 },
@@ -67,16 +69,15 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    pub fn build_graph(&mut self) {
-        let file = self.files.get(0).expect("no files").clone(); // start with first (assumed main for now) file
-        let t = file.tree.clone();
+    fn build_graph(&mut self, start_file: &'a File<'a>) {
+        let t = start_file.tree.clone();
         let mut cursor = t.walk();
 
         // start traversing with root of main file
-        self.traverse_block(&mut cursor, &file);
+        self.traverse_block(&mut cursor, &start_file);
     }
 
-    fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &File) {
+    fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) {
         let start_node = cursor.node().id();
         let mut visited = false;
         loop {
@@ -110,7 +111,7 @@ impl<'a> Analyzer<'a> {
     }
 
     // call with a cloned TreeCursor to not lose our place in the traversal
-    fn enter_node(&mut self, cursor: &mut TreeCursor, file: &File) -> bool {
+    fn enter_node(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) -> bool {
         let node = cursor.node();
         //println!("kind: {}", node.kind());
         match node.kind() {
@@ -121,7 +122,7 @@ impl<'a> Analyzer<'a> {
                 let name = self.find_name(&mut cursor.clone(), &file);
                 println!("found func {:?}", name);
                 if let Ok(name) = name {
-                    for f in &self.files.clone() {
+                    for f in self.files {
                         if let Some(resolved) = f.resolved.get(&name) {
                             match resolved {
                                 Resolved::Function { name, cursor } => {
@@ -151,7 +152,14 @@ impl<'a> Analyzer<'a> {
 
                                 self.trace_taint(cursor, &file, taint);
                             }
+                        } else if t.kind == "param" {
+                            if t.name.as_str() == var_name.clone() {
+                                let taint = t.clone();
+
+                                self.trace_taint(cursor, &file, taint);
+                            }
                         }
+
                     }
                 }
             }
@@ -166,7 +174,7 @@ impl<'a> Analyzer<'a> {
         return true;
     }
 
-    fn leave_node(&mut self, cursor: &mut TreeCursor, file: &File) {
+    fn leave_node(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) {
         let node = cursor.node();
         //println!("kind: {}", node.kind());
         match node.kind() {
@@ -177,7 +185,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn get_param_sources(&mut self, cursor: &mut TreeCursor, file: &File) -> Vec<Taint<'a>> {
+    fn get_param_sources(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) -> Vec<Taint> {
         let start_node = cursor.node().id();
         let mut taints = Vec::new();
         let mut visited = false;
@@ -191,13 +199,9 @@ impl<'a> Analyzer<'a> {
                         let taint = Taint {
                             kind: "param".to_string(),
                             name: s,
-                            scope: Scope {
-                                global: false,
-                                file: None,
-                                class: None,
-                                function: None,
-                            },
+                            scope: self.current_scope(&mut cursor.clone(), &file),
                         };
+                        println!("{:?}", self.current_scope(&mut cursor.clone(), &file));
                         taints.push(taint.clone());
                         self.taints.push(taint.clone());
 
@@ -218,12 +222,7 @@ impl<'a> Analyzer<'a> {
                         let taint = Taint {
                             kind: "source".to_string(),
                             name: s,
-                            scope: Scope {
-                                global: true,
-                                file: None,
-                                class: None,
-                                function: None,
-                            },
+                            scope: self.current_scope(&mut cursor.clone(), &file),
                         };
                         taints.push(taint.clone());
                         self.taints.push(taint.clone());
@@ -238,7 +237,7 @@ impl<'a> Analyzer<'a> {
         taints
     }
 
-    fn find_name(&self, cursor: &mut TreeCursor, file: &File) -> Result<String, ()> {
+    fn find_name(&self, cursor: &mut TreeCursor, file: &'a File<'a>) -> Result<String, ()> {
         let mut visited = false;
         loop {
             if visited {
@@ -264,7 +263,7 @@ impl<'a> Analyzer<'a> {
         Err(())
     }
 
-    fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &File, parent_taint: Taint<'a>) {
+    fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>, parent_taint: Taint) {
         let arc = Arc {
             context_stack: self.context_stack.clone(),
         };
@@ -278,7 +277,7 @@ impl<'a> Analyzer<'a> {
                         child_taint = Some(Taint {
                             kind: "variable".to_string(),
                             name,
-                            scope: self.current_scope(),
+                            scope: self.current_scope(&mut cursor.clone(), &file),
                         });
                         vertex = Some(Vertex::Assignment {
                             parent_taint: parent_taint.clone(),
@@ -327,10 +326,10 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn current_scope(&self, cursor: &mut TreeCursor, file: &'a File<'a>) -> Scope<'a> {
+    fn current_scope(&self, cursor: &mut TreeCursor, file: &File) -> Scope {
         let mut scope = Scope {
             global : false,
-            file : Some(file),
+            filename : Some(file.filename.clone()),
             function : None,
             class : None,
         };
@@ -349,11 +348,9 @@ impl<'a> Analyzer<'a> {
             }
         }
 
-        scope
-        }
+        println!("current scope: {:?}", scope);
 
-        while cursor.goto_parent() {
-            match cursor.node().kind() {
-                "assignment_expression" => {
+        scope
+
     }
 }
