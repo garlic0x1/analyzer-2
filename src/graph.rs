@@ -1,5 +1,4 @@
 use super::*;
-use crate::analyzer::*;
 use daggy::Dag;
 use std::collections::HashMap;
 use std::fmt;
@@ -47,8 +46,8 @@ impl fmt::Debug for Vertex {
             }
             Self::Resolved {
                 parent_taint,
-                name,
                 path,
+                ..
             } => {
                 for n in path.iter().rev() {
                     s.push_str(format!("{:?} <- ", n).as_str());
@@ -73,8 +72,8 @@ impl fmt::Debug for Vertex {
             }
             Self::Unresolved {
                 parent_taint,
-                name,
                 path,
+                ..
             } => {
                 for n in path.iter().rev() {
                     s.push_str(format!("{:?} <- ", n).as_str());
@@ -112,18 +111,13 @@ impl Graph {
         format!("{:?}", dot)
     }
 
-    pub fn push(&mut self, vertex: Vertex, arc: Option<Arc>, parent_taint: Option<Taint>) {
+    pub fn push(&mut self, vertex: Vertex, arc: Option<Arc>) {
         
-        if let Some(parent) = parent_taint {
-            let arc = arc.unwrap();
-            let leaf = self
-                .leaves
-                .get(&parent)
-                .expect(&format!("no parent found {:?}", vertex.clone()));
+        if let Some(arc) = arc {
             let id = self.dag.add_node(vertex.clone());
 
             match vertex {
-                Vertex::Assignment { kind, parent_taint, tainting, path } => {
+                Vertex::Assignment { parent_taint, tainting, .. } => {
                     // add edges
                     for leaf in self.leaves.get(&parent_taint).unwrap() {
                         self.dag.add_edge(*leaf, id, arc.clone());
@@ -137,13 +131,13 @@ impl Graph {
                     }
 
                 }
-                Vertex::Unresolved { parent_taint, name, path } => {
+                Vertex::Unresolved { parent_taint, .. } => {
                     // add edges
                     for leaf in self.leaves.get(&parent_taint).unwrap() {
                         self.dag.add_edge(*leaf, id, arc.clone());
                     }
                 }
-                Vertex::Resolved { parent_taint, name, path } => {
+                Vertex::Resolved { parent_taint, name, .. } => {
                     // add edges
                     for leaf in self.leaves.get(&parent_taint).unwrap() {
                         self.dag.add_edge(*leaf, id, arc.clone());

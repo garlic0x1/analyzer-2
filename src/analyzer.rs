@@ -1,7 +1,6 @@
 use crate::graph::*;
 use std::collections::HashSet;
 use crate::node_to_string;
-use crate::resolver;
 use crate::resolver::*;
 use crate::rules;
 use tree_sitter::*;
@@ -66,7 +65,7 @@ impl<'a> Analyzer<'a> {
             };
             self.taints.push(taint.clone());
             let vertex = Vertex::Source { tainting: taint };
-            self.graph.push(vertex, None, None);
+            self.graph.push(vertex, None);
         }
     }
 
@@ -96,7 +95,7 @@ impl<'a> Analyzer<'a> {
                     }
                     visited = false;
                 } else if cursor.goto_parent() {
-                    self.leave_node(&mut cursor.clone(), &file);
+                    self.leave_node(&mut cursor.clone());
                     if cursor.node().id() == start_node {
                         break;
                     }
@@ -177,7 +176,7 @@ impl<'a> Analyzer<'a> {
         return true;
     }
 
-    fn leave_node(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) {
+    fn leave_node(&mut self, cursor: &mut TreeCursor) {
         let node = cursor.node();
         //println!("kind: {}", node.kind());
         match node.kind() {
@@ -209,7 +208,7 @@ impl<'a> Analyzer<'a> {
                         self.taints.push(taint.clone());
 
                         let vertex = Vertex::Param { tainting: taint };
-                        self.graph.push(vertex, None, None);
+                        self.graph.push(vertex, None);
                     }
                 } else if cursor.goto_parent() {
                     if cursor.node().id() == start_node {
@@ -231,7 +230,7 @@ impl<'a> Analyzer<'a> {
                     self.taints.push(taint.clone());
 
                     let vertex = Vertex::Source { tainting: taint };
-                    self.graph.push(vertex, None, None);
+                    self.graph.push(vertex, None);
                 }
             } else {
                 visited = true;
@@ -277,7 +276,7 @@ impl<'a> Analyzer<'a> {
             match cursor.node().kind() {
                 "assignment_expression" => {
                     if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
-                        if (name == parent_taint.name) {
+                        if name == parent_taint.name {
                             break;
                         }
                         child_taint = Some(Taint {
@@ -302,7 +301,7 @@ impl<'a> Analyzer<'a> {
                             if let Some(resolved) = f.resolved.get(&name) {
                                 cont = false;
                                 match resolved {
-                                    Resolved::Function { name, cursor } => {
+                                    Resolved::Function { name, .. } => {
                                         println!("setting resolved vertex{}", name.to_string());
                                         path.push(PathNode::Resolved { name: name.clone() });
                                         vertex = Some(Vertex::Resolved {
@@ -348,7 +347,7 @@ impl<'a> Analyzer<'a> {
         }
         if let Some(vertex) = vertex {
             self.graph
-                .push(vertex, Some(arc), Some(parent_taint.clone()));
+                .push(vertex, Some(arc)); 
         }
     }
 
