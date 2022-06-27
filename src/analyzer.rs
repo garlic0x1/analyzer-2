@@ -159,7 +159,6 @@ impl<'a> Analyzer<'a> {
                                 self.trace_taint(cursor, &file, taint);
                             }
                         }
-
                     }
                 }
             }
@@ -216,20 +215,20 @@ impl<'a> Analyzer<'a> {
                     break;
                 }
             } else if cursor.goto_first_child() {
-                    if cursor.node().kind() == "simple_parameter" {
-                        let s: String = self.find_name(&mut cursor.clone(), &file).expect("no name");
-                        println!("taint name: {}", s.clone());
-                        let taint = Taint {
-                            kind: "source".to_string(),
-                            name: s,
-                            scope: self.current_scope(&mut cursor.clone(), &file),
-                        };
-                        taints.push(taint.clone());
-                        self.taints.push(taint.clone());
+                if cursor.node().kind() == "simple_parameter" {
+                    let s: String = self.find_name(&mut cursor.clone(), &file).expect("no name");
+                    println!("taint name: {}", s.clone());
+                    let taint = Taint {
+                        kind: "source".to_string(),
+                        name: s,
+                        scope: self.current_scope(&mut cursor.clone(), &file),
+                    };
+                    taints.push(taint.clone());
+                    self.taints.push(taint.clone());
 
-                        let vertex = Vertex::Source { tainting: taint };
-                        self.graph.push(vertex, None, None);
-                    }
+                    let vertex = Vertex::Source { tainting: taint };
+                    self.graph.push(vertex, None, None);
+                }
             } else {
                 visited = true;
             }
@@ -291,18 +290,38 @@ impl<'a> Analyzer<'a> {
                 "function_call_expression" => {
                     let name = self.find_name(&mut cursor.clone(), &file);
                     if let Ok(name) = name {
-                        path.push(PathNode { name: name.clone() });
-                        vertex = Some(Vertex::Unresolved {
-                            parent_taint: parent_taint.clone(),
-                            name,
-                            path: path.clone(),
-                        });
+                        let mut cont = true;
+                        for f in self.files {
+                            if let Some(resolved) = f.resolved.get(&name) {
+                                cont = false;
+                                match resolved {
+                                    Resolved::Function { name, cursor } => {
+                                        println!("setting resolved vertex{}", name.to_string());
+                                        path.push(PathNode::Resolved { name: name.clone() });
+                                        vertex = Some(Vertex::Resolved {
+                                            parent_taint: parent_taint.clone(),
+                                            name: name.to_string(),
+                                            path: path.clone(),
+                                        });
+                                    }
+                                    _ => (),
+                                }
+                            }
+                        }
+                        if cont {
+                            path.push(PathNode::Unresolved { name: name.clone() });
+                            vertex = Some(Vertex::Unresolved {
+                                parent_taint: parent_taint.clone(),
+                                name: name.to_string(),
+                                path: path.clone(),
+                            });
+                        }
                     }
                 }
                 "method_call_expression" => {
                     let name = self.find_name(&mut cursor.clone(), &file);
                     if let Ok(name) = name {
-                        path.push(PathNode { name: name.clone() });
+                        path.push(PathNode::Unresolved { name: name.clone() });
                         vertex = Some(Vertex::Unresolved {
                             parent_taint: parent_taint.clone(),
                             name,
@@ -328,10 +347,10 @@ impl<'a> Analyzer<'a> {
 
     fn current_scope(&self, cursor: &mut TreeCursor, file: &File) -> Scope {
         let mut scope = Scope {
-            global : false,
-            filename : Some(file.filename.clone()),
-            function : None,
-            class : None,
+            global: false,
+            filename: Some(file.filename.clone()),
+            function: None,
+            class: None,
         };
 
         while cursor.goto_parent() {
@@ -339,18 +358,17 @@ impl<'a> Analyzer<'a> {
                 "function_definition" | "method_declaration" => {
                     let name = self.find_name(&mut cursor.clone(), &file).expect("no name");
                     scope.function = Some(name);
-                },
+                }
                 "class_declaration" => {
                     let name = self.find_name(&mut cursor.clone(), &file).expect("no name");
                     scope.class = Some(name);
-                },
-                _ => ()
+                }
+                _ => (),
             }
         }
 
         println!("current scope: {:?}", scope);
 
         scope
-
     }
 }

@@ -21,6 +21,11 @@ pub enum Vertex {
         tainting: Taint,
         path: Vec<PathNode>,
     },
+    Resolved {
+        parent_taint: Taint,
+        name: String,
+        path: Vec<PathNode>,
+    },
     Unresolved {
         parent_taint: Taint,
         name: String,
@@ -32,6 +37,16 @@ impl fmt::Debug for Vertex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = String::new();
         match self {
+            Self::Resolved {
+                parent_taint,
+                name,
+                path,
+            } => {
+                for n in path.iter().rev() {
+                    s.push_str(format!("{:?} <- ", n).as_str());
+                }
+                s.push_str(format!("{}", parent_taint.name).as_str());
+            }
             Self::Source { tainting } => {
                 s.push('$');
                 s.push_str(&tainting.name);
@@ -44,7 +59,7 @@ impl fmt::Debug for Vertex {
             } => {
                 s.push_str(format!("[{}] {}", kind, tainting.name).as_str());
                 for n in path.iter().rev() {
-                    s.push_str(format!(" <- {}", n.name).as_str());
+                    s.push_str(format!(" <- {:?}", n).as_str());
                 }
                 s.push_str(format!(" <- {}", parent_taint.name).as_str());
             }
@@ -54,7 +69,7 @@ impl fmt::Debug for Vertex {
                 path,
             } => {
                 for n in path.iter().rev() {
-                    s.push_str(format!("{} <- ", n.name).as_str());
+                    s.push_str(format!("{:?} <- ", n).as_str());
                 }
                 s.push_str(format!("{}", parent_taint.name).as_str());
             }
@@ -64,8 +79,9 @@ impl fmt::Debug for Vertex {
 }
 
 #[derive(Clone, Debug)]
-pub struct PathNode {
-    pub name: String,
+pub enum PathNode {
+    Resolved { name: String },
+    Unresolved { name: String },
 }
 
 #[derive(Clone, Debug)]
@@ -90,11 +106,14 @@ impl Graph {
     pub fn push(&mut self, vertex: Vertex, arc: Option<Arc>, parent_taint: Option<Taint>) {
         if let Some(parent) = parent_taint {
             let debug = parent.name.clone();
-            let leaf = self.leaves.get(&parent).expect(&format!("no parent found {}", debug));
+            let leaf = self
+                .leaves
+                .get(&parent)
+                .expect(&format!("no parent found {}", debug));
             let id = self
                 .dag
                 .add_child(*leaf, arc.expect("no arc provided"), vertex.clone());
-            
+
             if let Vertex::Assignment {
                 parent_taint,
                 tainting,
