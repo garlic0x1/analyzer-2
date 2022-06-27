@@ -204,7 +204,7 @@ impl<'a> Analyzer<'a> {
                         taints.push(taint.clone());
                         self.taints.push(taint.clone());
 
-                        let vertex = Vertex::Source { tainting: taint };
+                        let vertex = Vertex::Param { tainting: taint };
                         self.graph.push(vertex, None, None);
                     }
                 } else if cursor.goto_parent() {
