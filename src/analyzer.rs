@@ -1,4 +1,5 @@
 use crate::graph::*;
+use std::collections::HashSet;
 use crate::node_to_string;
 use crate::resolver;
 use crate::resolver::*;
@@ -7,7 +8,7 @@ use tree_sitter::*;
 
 // not same thing as context in last version
 // this is to store hook/html stuff
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Context {
     kind: String,
     name: String,
@@ -18,6 +19,7 @@ pub struct Taint {
     pub kind: String,
     pub name: String,
     pub scope: Scope,
+    pub context_stack: Vec<Context>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -29,6 +31,7 @@ pub struct Scope {
 }
 
 pub struct Analyzer<'a> {
+    graphed_blocks: HashSet<String>,
     files: &'a Vec<File<'a>>,
     rules: rules::Rules,
     pub graph: Graph,
@@ -40,6 +43,7 @@ impl<'a> Analyzer<'a> {
         let mut s = Self {
             files,
             rules,
+            graphed_blocks: HashSet::new(),
             graph: Graph::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
@@ -62,6 +66,7 @@ impl<'a> Analyzer<'a> {
                     class: None,
                     function: None,
                 },
+                context_stack: self.context_stack.clone(),
             };
             self.taints.push(taint.clone());
             let vertex = Vertex::Source { tainting: taint };
@@ -126,9 +131,12 @@ impl<'a> Analyzer<'a> {
                         if let Some(resolved) = f.resolved.get(&name) {
                             match resolved {
                                 Resolved::Function { name, cursor } => {
-                                    println!("jumping to func {}", name);
+                                    if self.graphed_blocks.contains(name) {
+                                        continue;
+                                    }
                                     self.get_param_sources(&mut cursor.clone(), f);
                                     self.traverse_block(&mut cursor.clone(), f);
+                                    self.graphed_blocks.insert(name.to_string());
                                 }
                                 _ => (),
                             }
@@ -199,6 +207,7 @@ impl<'a> Analyzer<'a> {
                             kind: "param".to_string(),
                             name: s,
                             scope: self.current_scope(&mut cursor.clone(), &file),
+                context_stack: self.context_stack.clone(),
                         };
                         println!("{:?}", self.current_scope(&mut cursor.clone(), &file));
                         taints.push(taint.clone());
@@ -222,6 +231,7 @@ impl<'a> Analyzer<'a> {
                         kind: "source".to_string(),
                         name: s,
                         scope: self.current_scope(&mut cursor.clone(), &file),
+                context_stack: self.context_stack.clone(),
                     };
                     taints.push(taint.clone());
                     self.taints.push(taint.clone());
@@ -277,6 +287,7 @@ impl<'a> Analyzer<'a> {
                             kind: "variable".to_string(),
                             name,
                             scope: self.current_scope(&mut cursor.clone(), &file),
+                context_stack: self.context_stack.clone(),
                         });
                         vertex = Some(Vertex::Assignment {
                             parent_taint: parent_taint.clone(),

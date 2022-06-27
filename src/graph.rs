@@ -7,7 +7,7 @@ use std::fmt;
 pub struct Graph {
     dag: Dag<Vertex, Arc>,
     // last node that modified a taint
-    leaves: HashMap<Taint, daggy::NodeIndex>,
+    leaves: HashMap<Taint, Vec<daggy::NodeIndex>>,
     params: HashMap<String, Vec<daggy::NodeIndex>>,
 }
 
@@ -116,24 +116,42 @@ impl Graph {
         
         if let Some(parent) = parent_taint {
             let arc = arc.unwrap();
-            let debug = parent.name.clone();
             let leaf = self
                 .leaves
                 .get(&parent)
                 .expect(&format!("no parent found {:?}", vertex.clone()));
-            let id = self
-                .dag
-                .add_child(*leaf, arc.clone(), vertex.clone());
+            let id = self.dag.add_node(vertex.clone());
 
             match vertex {
                 Vertex::Assignment { kind, parent_taint, tainting, path } => {
-                    self.leaves.insert(tainting, id.1);
+                    // add edges
+                    for leaf in self.leaves.get(&parent_taint).unwrap() {
+                        self.dag.add_edge(*leaf, id, arc.clone());
+                    }
+
+                    if self.leaves.contains_key(&tainting) {
+                        let leaf = self.leaves.get_mut(&tainting).unwrap();
+                        leaf.push(id);
+                    } else {
+                        self.leaves.insert(tainting, vec![id]);
+                    }
+
+                }
+                Vertex::Unresolved { parent_taint, name, path } => {
+                    // add edges
+                    for leaf in self.leaves.get(&parent_taint).unwrap() {
+                        self.dag.add_edge(*leaf, id, arc.clone());
+                    }
                 }
                 Vertex::Resolved { parent_taint, name, path } => {
+                    // add edges
+                    for leaf in self.leaves.get(&parent_taint).unwrap() {
+                        self.dag.add_edge(*leaf, id, arc.clone());
+                    }
                     let params = self.params.get(&name);
                     if let Some(params) = params {
                         for p in params {
-                            self.dag.add_edge(id.1, *p, arc.clone());
+                            self.dag.add_edge(id, *p, arc.clone());
                         }
                     }
                 }
@@ -150,13 +168,28 @@ impl Graph {
                     } else {
                         self.params.insert(tainting.scope.clone().function.unwrap(), vec![id]);
                     }
-                    self.leaves.insert(tainting, id);
+                    if self.leaves.contains_key(&tainting) {
+                        let leaf = self.leaves.get_mut(&tainting).unwrap();
+                        leaf.push(id);
+                    } else {
+                        self.leaves.insert(tainting, vec![id]);
+                    }
                 }
                 Vertex::Source { tainting, .. } => {
-                    self.leaves.insert(tainting, id);
+                    if self.leaves.contains_key(&tainting) {
+                        let leaf = self.leaves.get_mut(&tainting).unwrap();
+                        leaf.push(id);
+                    } else {
+                        self.leaves.insert(tainting, vec![id]);
+                    }
                 }
                 Vertex::Assignment { tainting, .. } => {
-                    self.leaves.insert(tainting, id);
+                    if self.leaves.contains_key(&tainting) {
+                        let leaf = self.leaves.get_mut(&tainting).unwrap();
+                        leaf.push(id);
+                    } else {
+                        self.leaves.insert(tainting, vec![id]);
+                    }
                 }
                 _ => {
                     //self.leaves.insert(parent_taint, id);
