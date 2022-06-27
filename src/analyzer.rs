@@ -1,16 +1,16 @@
 use crate::graph::*;
-use std::collections::HashSet;
 use crate::node_to_string;
 use crate::resolver::*;
 use crate::rules;
+use std::collections::HashSet;
 use tree_sitter::*;
 
 // not same thing as context in last version
 // this is to store hook/html stuff
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Context {
-    kind: String,
-    name: String,
+    pub kind: String,
+    pub name: String,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -130,6 +130,10 @@ impl<'a> Analyzer<'a> {
                                         continue;
                                     }
                                     self.get_param_sources(&mut cursor.clone(), f);
+                                    self.context_stack.push(Context {
+                                        kind: node.kind().to_string(),
+                                        name: node_to_string(&node, &file.source_code),
+                                    });
                                     self.traverse_block(&mut cursor.clone(), f);
                                     self.graphed_blocks.insert(name.to_string());
                                 }
@@ -346,8 +350,7 @@ impl<'a> Analyzer<'a> {
             self.taints.push(taint);
         }
         if let Some(vertex) = vertex {
-            self.graph
-                .push(vertex, Some(arc)); 
+            self.graph.push(vertex, Some(arc));
         }
     }
 

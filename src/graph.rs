@@ -45,9 +45,7 @@ impl fmt::Debug for Vertex {
                 s.push_str(&tainting.name);
             }
             Self::Resolved {
-                parent_taint,
-                path,
-                ..
+                parent_taint, path, ..
             } => {
                 for n in path.iter().rev() {
                     s.push_str(format!("{:?} <- ", n).as_str());
@@ -64,16 +62,14 @@ impl fmt::Debug for Vertex {
                 tainting,
                 path,
             } => {
-                s.push_str(format!("[{}] {}", kind, tainting.name).as_str());
+                s.push_str(format!("Assign {}", tainting.name).as_str());
                 for n in path.iter().rev() {
                     s.push_str(format!(" <- {:?}", n).as_str());
                 }
                 s.push_str(format!(" <- {}", parent_taint.name).as_str());
             }
             Self::Unresolved {
-                parent_taint,
-                path,
-                ..
+                parent_taint, path, ..
             } => {
                 for n in path.iter().rev() {
                     s.push_str(format!("{:?} <- ", n).as_str());
@@ -85,13 +81,23 @@ impl fmt::Debug for Vertex {
     }
 }
 
+impl fmt::Debug for Arc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(s) = self.context_stack.get(0) {
+            write!(f, "{}", s.kind)
+        } else {
+            write!(f, "")
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum PathNode {
     Resolved { name: String },
     Unresolved { name: String },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Arc {
     // path of hooks, conditionals, and loops
     pub context_stack: Vec<Context>,
@@ -112,12 +118,15 @@ impl Graph {
     }
 
     pub fn push(&mut self, vertex: Vertex, arc: Option<Arc>) {
-        
         if let Some(arc) = arc {
             let id = self.dag.add_node(vertex.clone());
 
             match vertex {
-                Vertex::Assignment { parent_taint, tainting, .. } => {
+                Vertex::Assignment {
+                    parent_taint,
+                    tainting,
+                    ..
+                } => {
                     // add edges
                     for leaf in self.leaves.get(&parent_taint).unwrap() {
                         self.dag.add_edge(*leaf, id, arc.clone());
@@ -129,7 +138,6 @@ impl Graph {
                     } else {
                         self.leaves.insert(tainting, vec![id]);
                     }
-
                 }
                 Vertex::Unresolved { parent_taint, .. } => {
                     // add edges
@@ -137,7 +145,9 @@ impl Graph {
                         self.dag.add_edge(*leaf, id, arc.clone());
                     }
                 }
-                Vertex::Resolved { parent_taint, name, .. } => {
+                Vertex::Resolved {
+                    parent_taint, name, ..
+                } => {
                     // add edges
                     for leaf in self.leaves.get(&parent_taint).unwrap() {
                         self.dag.add_edge(*leaf, id, arc.clone());
@@ -149,7 +159,7 @@ impl Graph {
                         }
                     }
                 }
-                _ => ()
+                _ => (),
             }
         } else {
             let id = self.dag.add_node(vertex.clone());
@@ -157,10 +167,14 @@ impl Graph {
                 Vertex::Param { tainting } => {
                     let name = tainting.clone().scope.function.unwrap();
                     if self.params.contains_key(&name) {
-                        let param = self.params.get_mut(&tainting.scope.clone().function.unwrap()).unwrap();
+                        let param = self
+                            .params
+                            .get_mut(&tainting.scope.clone().function.unwrap())
+                            .unwrap();
                         param.push(id);
                     } else {
-                        self.params.insert(tainting.scope.clone().function.unwrap(), vec![id]);
+                        self.params
+                            .insert(tainting.scope.clone().function.unwrap(), vec![id]);
                     }
                     if self.leaves.contains_key(&tainting) {
                         let leaf = self.leaves.get_mut(&tainting).unwrap();
