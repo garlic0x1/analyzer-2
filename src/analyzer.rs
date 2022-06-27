@@ -19,12 +19,10 @@ pub struct Taint {
     pub kind: String,
     pub name: String,
     pub scope: Scope,
-    pub context_stack: Vec<Context>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Scope {
-    pub global: bool,
     pub filename: Option<String>,
     pub class: Option<String>,
     pub function: Option<String>,
@@ -61,12 +59,10 @@ impl<'a> Analyzer<'a> {
                 kind: "source".to_string(),
                 name: source.name.clone(),
                 scope: Scope {
-                    global: true,
                     filename: None,
                     class: None,
                     function: None,
                 },
-                context_stack: self.context_stack.clone(),
             };
             self.taints.push(taint.clone());
             let vertex = Vertex::Source { tainting: taint };
@@ -207,7 +203,6 @@ impl<'a> Analyzer<'a> {
                             kind: "param".to_string(),
                             name: s,
                             scope: self.current_scope(&mut cursor.clone(), &file),
-                context_stack: self.context_stack.clone(),
                         };
                         println!("{:?}", self.current_scope(&mut cursor.clone(), &file));
                         taints.push(taint.clone());
@@ -231,7 +226,6 @@ impl<'a> Analyzer<'a> {
                         kind: "source".to_string(),
                         name: s,
                         scope: self.current_scope(&mut cursor.clone(), &file),
-                context_stack: self.context_stack.clone(),
                     };
                     taints.push(taint.clone());
                     self.taints.push(taint.clone());
@@ -283,11 +277,13 @@ impl<'a> Analyzer<'a> {
             match cursor.node().kind() {
                 "assignment_expression" => {
                     if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
+                        if (name == parent_taint.name) {
+                            break;
+                        }
                         child_taint = Some(Taint {
                             kind: "variable".to_string(),
                             name,
                             scope: self.current_scope(&mut cursor.clone(), &file),
-                context_stack: self.context_stack.clone(),
                         });
                         vertex = Some(Vertex::Assignment {
                             parent_taint: parent_taint.clone(),
@@ -358,7 +354,6 @@ impl<'a> Analyzer<'a> {
 
     fn current_scope(&self, cursor: &mut TreeCursor, file: &File) -> Scope {
         let mut scope = Scope {
-            global: false,
             filename: Some(file.filename.clone()),
             function: None,
             class: None,
