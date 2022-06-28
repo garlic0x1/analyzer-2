@@ -64,8 +64,11 @@ impl<'a> Analyzer<'a> {
                 },
             };
             self.taints.push(taint.clone());
-            let vertex = Vertex::Source { tainting: taint };
-            self.graph.push(vertex, None);
+            let vertex = Vertex::Source {
+                tainting: taint,
+                context_stack: self.context_stack.clone(),
+            };
+            self.graph.push(vertex);
         }
     }
 
@@ -112,15 +115,16 @@ impl<'a> Analyzer<'a> {
 
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) -> bool {
+        println!("{}", cursor.node().kind());
+        println!("{:?}", cursor.field_id());
+        println!("{:?}", cursor.field_name());
         let node = cursor.node();
-        //println!("kind: {}", node.kind());
         match node.kind() {
             // return false to not crawl into these
             "function_definition" | "method_declaration" | "class_declaration" => return false,
             // these will find resolved funcs and crawl them too
             "function_call_expression" | "method_call_expression" => {
                 let name = self.find_name(&mut cursor.clone(), &file);
-                println!("found func {:?}", name);
                 if let Ok(name) = name {
                     for f in self.files {
                         if let Some(resolved) = f.resolved.get(&name) {
@@ -135,6 +139,7 @@ impl<'a> Analyzer<'a> {
                                         name: node_to_string(&node, &file.source_code),
                                     });
                                     self.traverse_block(&mut cursor.clone(), f);
+                                    self.context_stack.pop();
                                     self.graphed_blocks.insert(name.to_string());
                                 }
                                 _ => (),
@@ -145,6 +150,12 @@ impl<'a> Analyzer<'a> {
             }
             // if this is a taint, trace it
             "variable_name" => {
+                if let Some(s) = cursor.field_name() {
+                    if s == "left" {
+                        println!("not tracing the left");
+                        return true;
+                    }
+                }
                 let result = self.find_name(&mut cursor.clone(), &file);
                 if let Ok(var_name) = &result {
                     for t in &self.taints.clone() {
@@ -182,7 +193,6 @@ impl<'a> Analyzer<'a> {
 
     fn leave_node(&mut self, cursor: &mut TreeCursor) {
         let node = cursor.node();
-        //println!("kind: {}", node.kind());
         match node.kind() {
             "if_statement" | "do_statement" | "for_statement" => {
                 self.context_stack.pop();
@@ -201,18 +211,19 @@ impl<'a> Analyzer<'a> {
                     visited = false;
                     if cursor.node().kind() == "simple_parameter" {
                         let s = self.find_name(&mut cursor.clone(), file).expect("no name");
-                        println!("taint name: {}", s.clone());
                         let taint = Taint {
                             kind: "param".to_string(),
                             name: s,
                             scope: self.current_scope(&mut cursor.clone(), &file),
                         };
-                        println!("{:?}", self.current_scope(&mut cursor.clone(), &file));
                         taints.push(taint.clone());
                         self.taints.push(taint.clone());
 
-                        let vertex = Vertex::Param { tainting: taint };
-                        self.graph.push(vertex, None);
+                        let vertex = Vertex::Param {
+                            tainting: taint,
+                            context_stack: self.context_stack.clone(),
+                        };
+                        self.graph.push(vertex);
                     }
                 } else if cursor.goto_parent() {
                     if cursor.node().id() == start_node {
@@ -224,7 +235,6 @@ impl<'a> Analyzer<'a> {
             } else if cursor.goto_first_child() {
                 if cursor.node().kind() == "simple_parameter" {
                     let s: String = self.find_name(&mut cursor.clone(), &file).expect("no name");
-                    println!("taint name: {}", s.clone());
                     let taint = Taint {
                         kind: "source".to_string(),
                         name: s,
@@ -233,8 +243,11 @@ impl<'a> Analyzer<'a> {
                     taints.push(taint.clone());
                     self.taints.push(taint.clone());
 
-                    let vertex = Vertex::Source { tainting: taint };
-                    self.graph.push(vertex, None);
+                    let vertex = Vertex::Source {
+                        tainting: taint,
+                        context_stack: self.context_stack.clone(),
+                    };
+                    self.graph.push(vertex);
                 }
             } else {
                 visited = true;
@@ -280,9 +293,6 @@ impl<'a> Analyzer<'a> {
             match cursor.node().kind() {
                 "assignment_expression" => {
                     if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
-                        if name == parent_taint.name {
-                            break;
-                        }
                         child_taint = Some(Taint {
                             kind: "variable".to_string(),
                             name,
@@ -293,6 +303,7 @@ impl<'a> Analyzer<'a> {
                             kind: "assignment_expression".to_string(),
                             tainting: child_taint.clone().expect("eeeerrrrooorrr"),
                             path: path.clone(),
+                            context_stack: self.context_stack.clone(),
                         });
                         break;
                     }
@@ -306,12 +317,12 @@ impl<'a> Analyzer<'a> {
                                 cont = false;
                                 match resolved {
                                     Resolved::Function { name, .. } => {
-                                        println!("setting resolved vertex{}", name.to_string());
                                         path.push(PathNode::Resolved { name: name.clone() });
                                         vertex = Some(Vertex::Resolved {
                                             parent_taint: parent_taint.clone(),
                                             name: name.to_string(),
                                             path: path.clone(),
+                                            context_stack: self.context_stack.clone(),
                                         });
                                     }
                                     _ => (),
@@ -324,6 +335,7 @@ impl<'a> Analyzer<'a> {
                                 parent_taint: parent_taint.clone(),
                                 name: name.to_string(),
                                 path: path.clone(),
+                                context_stack: self.context_stack.clone(),
                             });
                         }
                     }
@@ -336,6 +348,7 @@ impl<'a> Analyzer<'a> {
                             parent_taint: parent_taint.clone(),
                             name,
                             path: path.clone(),
+                            context_stack: self.context_stack.clone(),
                         });
                     }
                 }
@@ -350,7 +363,7 @@ impl<'a> Analyzer<'a> {
             self.taints.push(taint);
         }
         if let Some(vertex) = vertex {
-            self.graph.push(vertex, Some(arc));
+            self.graph.push(vertex);
         }
     }
 
@@ -374,8 +387,6 @@ impl<'a> Analyzer<'a> {
                 _ => (),
             }
         }
-
-        println!("current scope: {:?}", scope);
 
         scope
     }

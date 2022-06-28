@@ -23,16 +23,6 @@ fn main() {
     let mut files = Vec::new();
     files.push(file);
     files.push(file1);
-    /*
-    let source_code2 = fs::read_to_string("test2.php").expect("failed to read file");
-    let mut parser2 = Parser::new();
-    parser2
-        .set_language(tree_sitter_php::language())
-        .expect("Error loading PHP parsing support");
-    let tree2: Tree = parser.parse(&source_code, None).unwrap();
-    let file2 = File::new("filename".to_string(), &tree, &source_code);
-    files.push(file2);
-    */
 
     let mut analyzer = Analyzer::new(&files, ruleset);
     println!("{}", analyzer.graph.dump());
