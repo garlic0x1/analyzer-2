@@ -69,7 +69,6 @@ impl fmt::Debug for Vertex {
             }
             Self::Assignment {
                 parent_taint,
-                kind,
                 tainting,
                 path,
                 ..
@@ -141,7 +140,7 @@ impl Graph {
             } => {
                 // add edges
                 for leaf in self.leaves.get(&parent_taint).unwrap() {
-                    self.dag.add_edge(
+                    _ = self.dag.add_edge(
                         leaf.node,
                         id,
                         Arc {
@@ -170,7 +169,7 @@ impl Graph {
                     }
                     newleaf.push(Leaf {
                         node: id,
-                        context_stack,
+                        context_stack: context_stack,
                     });
                     self.leaves.insert(tainting, newleaf);
                 } else {
@@ -178,7 +177,7 @@ impl Graph {
                         tainting,
                         vec![Leaf {
                             node: id,
-                            context_stack,
+                            context_stack: context_stack,
                         }],
                     );
                 }
@@ -203,14 +202,14 @@ impl Graph {
                     let leaf = self.leaves.get_mut(&tainting).unwrap();
                     leaf.push(Leaf {
                         node: id,
-                        context_stack,
+                        context_stack: context_stack,
                     });
                 } else {
                     self.leaves.insert(
                         tainting,
                         vec![Leaf {
                             node: id,
-                            context_stack,
+                            context_stack: context_stack,
                         }],
                     );
                 }
@@ -220,14 +219,14 @@ impl Graph {
                     let leaf = self.leaves.get_mut(&tainting).unwrap();
                     leaf.push(Leaf {
                         node: id,
-                        context_stack,
+                        context_stack: context_stack,
                     });
                 } else {
                     self.leaves.insert(
                         tainting,
                         vec![Leaf {
                             node: id,
-                            context_stack,
+                            context_stack: context_stack,
                         }],
                     );
                 }
@@ -239,7 +238,7 @@ impl Graph {
             } => {
                 // add edges
                 for leaf in self.leaves.get(&parent_taint).unwrap() {
-                    self.dag.add_edge(
+                    _ = self.dag.add_edge(
                         leaf.node,
                         id,
                         Arc {
@@ -256,7 +255,7 @@ impl Graph {
             } => {
                 // add edges
                 for leaf in self.leaves.get(&parent_taint).unwrap() {
-                    self.dag.add_edge(
+                    _ = self.dag.add_edge(
                         leaf.node,
                         id,
                         Arc {
@@ -267,7 +266,7 @@ impl Graph {
                 let params = self.params.get(&name);
                 if let Some(params) = params {
                     for p in params {
-                        self.dag.add_edge(
+                        _ = self.dag.add_edge(
                             id,
                             *p,
                             Arc {

@@ -77,16 +77,19 @@ impl<'a> Analyzer<'a> {
         let mut cursor = t.walk();
 
         // start traversing with root of main file
-        self.traverse_block(&mut cursor, &start_file);
+        self.graph(&mut cursor, &start_file);
     }
 
-    fn traverse_block(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) {
+    fn graph(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) {
         let start_node = cursor.node().id();
         let mut visited = false;
+        let mut stack = Vec::new();
         loop {
             if visited {
                 if cursor.goto_next_sibling() {
-                    let cont = self.enter_node(&mut cursor.clone(), &file);
+                    let inc = stack.pop().expect("empty stack");
+                    stack.push(inc+1);
+                    let cont = self.enter_node(&mut cursor.clone(), inc,  &file);
                     if !cont {
                         if cursor.goto_next_sibling() {
                             visited = false;
@@ -98,6 +101,7 @@ impl<'a> Analyzer<'a> {
                     }
                     visited = false;
                 } else if cursor.goto_parent() {
+                    stack.pop();
                     self.leave_node(&mut cursor.clone());
                     if cursor.node().id() == start_node {
                         break;
@@ -106,7 +110,8 @@ impl<'a> Analyzer<'a> {
                     break;
                 }
             } else if cursor.goto_first_child() {
-                self.enter_node(&mut cursor.clone(), &file);
+                stack.push(0);
+                self.enter_node(&mut cursor.clone(), 0, &file);
             } else {
                 visited = true;
             }
@@ -114,9 +119,9 @@ impl<'a> Analyzer<'a> {
     }
 
     // call with a cloned TreeCursor to not lose our place in the traversal
-    fn enter_node(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) -> bool {
+    fn enter_node(&mut self, cursor: &mut TreeCursor, index: u32, file: &'a File<'a>) -> bool {
         println!("{}", cursor.node().kind());
-        println!("{:?}", cursor.field_id());
+        println!("{}", index);
         println!("{:?}", cursor.field_name());
         let node = cursor.node();
         match node.kind() {
@@ -138,7 +143,7 @@ impl<'a> Analyzer<'a> {
                                         kind: node.kind().to_string(),
                                         name: node_to_string(&node, &file.source_code),
                                     });
-                                    self.traverse_block(&mut cursor.clone(), f);
+                                    self.graph(&mut cursor.clone(), f);
                                     self.context_stack.pop();
                                     self.graphed_blocks.insert(name.to_string());
                                 }
