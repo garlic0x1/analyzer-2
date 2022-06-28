@@ -2,6 +2,7 @@ use crate::graph::*;
 use crate::node_to_string;
 use crate::resolver::*;
 use crate::rules;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use tree_sitter::*;
 
@@ -34,6 +35,7 @@ pub struct Analyzer<'a> {
     pub graph: Graph,
     context_stack: Vec<Context>,
     taints: Vec<Taint>,
+    resolved_params: HashMap<String, Vec<Taint>>,
 }
 impl<'a> Analyzer<'a> {
     pub fn new(files: &'a Vec<File<'a>>, rules: rules::Rules) -> Self {
@@ -44,6 +46,7 @@ impl<'a> Analyzer<'a> {
             graph: Graph::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
+            resolved_params: HashMap::new(),
         };
         // initialize the taint vec with sources of input
         let start_file_reference: &'a File<'a> = &s.files[0];
@@ -88,8 +91,8 @@ impl<'a> Analyzer<'a> {
             if visited {
                 if cursor.goto_next_sibling() {
                     let inc = stack.pop().expect("empty stack");
-                    stack.push(inc+1);
-                    let cont = self.enter_node(&mut cursor.clone(), inc,  &file);
+                    stack.push(inc + 1);
+                    let cont = self.enter_node(&mut cursor.clone(), inc, &file);
                     if !cont {
                         if cursor.goto_next_sibling() {
                             visited = false;
@@ -102,7 +105,7 @@ impl<'a> Analyzer<'a> {
                     visited = false;
                 } else if cursor.goto_parent() {
                     stack.pop();
-                    self.leave_node(&mut cursor.clone());
+                    self.leave_node(&mut cursor.clone(), &file);
                     if cursor.node().id() == start_node {
                         break;
                     }
@@ -120,44 +123,15 @@ impl<'a> Analyzer<'a> {
 
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, index: u32, file: &'a File<'a>) -> bool {
-        println!("{}", cursor.node().kind());
-        println!("{}", index);
-        println!("{:?}", cursor.field_name());
         let node = cursor.node();
         match node.kind() {
             // return false to not crawl into these
             "function_definition" | "method_declaration" | "class_declaration" => return false,
             // these will find resolved funcs and crawl them too
-            "function_call_expression" | "method_call_expression" => {
-                let name = self.find_name(&mut cursor.clone(), &file);
-                if let Ok(name) = name {
-                    for f in self.files {
-                        if let Some(resolved) = f.resolved.get(&name) {
-                            match resolved {
-                                Resolved::Function { name, cursor } => {
-                                    if self.graphed_blocks.contains(name) {
-                                        continue;
-                                    }
-                                    self.get_param_sources(&mut cursor.clone(), f);
-                                    self.context_stack.push(Context {
-                                        kind: node.kind().to_string(),
-                                        name: node_to_string(&node, &file.source_code),
-                                    });
-                                    self.graph(&mut cursor.clone(), f);
-                                    self.context_stack.pop();
-                                    self.graphed_blocks.insert(name.to_string());
-                                }
-                                _ => (),
-                            }
-                        }
-                    }
-                }
-            }
             // if this is a taint, trace it
             "variable_name" => {
                 if let Some(s) = cursor.field_name() {
                     if s == "left" {
-                        println!("not tracing the left");
                         return true;
                     }
                 }
@@ -186,6 +160,7 @@ impl<'a> Analyzer<'a> {
                 }
             }
             "if_statement" | "do_statement" | "for_statement" => {
+                println!("aaa {:?}", node.kind());
                 self.context_stack.push(Context {
                     kind: node.kind().to_string(),
                     name: node_to_string(&node, &file.source_code),
@@ -196,23 +171,53 @@ impl<'a> Analyzer<'a> {
         return true;
     }
 
-    fn leave_node(&mut self, cursor: &mut TreeCursor) {
+    fn leave_node(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) {
         let node = cursor.node();
         match node.kind() {
             "if_statement" | "do_statement" | "for_statement" => {
                 self.context_stack.pop();
             }
+            "function_call_expression" | "method_call_expression" => {
+                let name = self.find_name(&mut cursor.clone(), &file);
+                if let Ok(name) = name {
+                    for f in self.files {
+                        if let Some(resolved) = f.resolved.get(&name) {
+                            match resolved {
+                                Resolved::Function { name, cursor } => {
+                                    if self.graphed_blocks.contains(name) {
+                                        continue;
+                                    }
+                                    self.load_param_sources(&mut cursor.clone(), f, name);
+                                    self.context_stack.push(Context {
+                                        kind: node.kind().to_string(),
+                                        name: node_to_string(&node, &f.source_code),
+                                    });
+                                    self.graph(&mut cursor.clone(), f);
+                                    self.context_stack.pop();
+                                    self.graphed_blocks.insert(name.to_string());
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
+                }
+            }
             _ => (),
         }
     }
 
-    fn get_param_sources(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) -> Vec<Taint> {
+    fn load_param_sources(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>, name: &str) {
+        println!("{}", cursor.node().kind());
+        println!("{:?}", cursor.field_id());
         let start_node = cursor.node().id();
-        let mut taints = Vec::new();
         let mut visited = false;
+        let mut stack = Vec::new();
+        let mut params = Vec::new();
         loop {
             if visited {
                 if cursor.goto_next_sibling() {
+                    let inc = stack.pop().expect("empty stack");
+                    stack.push(inc + 1);
                     visited = false;
                     if cursor.node().kind() == "simple_parameter" {
                         let s = self.find_name(&mut cursor.clone(), file).expect("no name");
@@ -221,16 +226,10 @@ impl<'a> Analyzer<'a> {
                             name: s,
                             scope: self.current_scope(&mut cursor.clone(), &file),
                         };
-                        taints.push(taint.clone());
-                        self.taints.push(taint.clone());
-
-                        let vertex = Vertex::Param {
-                            tainting: taint,
-                            context_stack: self.context_stack.clone(),
-                        };
-                        self.graph.push(vertex);
+                        params.push(taint);
                     }
                 } else if cursor.goto_parent() {
+                    stack.pop();
                     if cursor.node().id() == start_node {
                         break;
                     }
@@ -238,6 +237,7 @@ impl<'a> Analyzer<'a> {
                     break;
                 }
             } else if cursor.goto_first_child() {
+                stack.push(0);
                 if cursor.node().kind() == "simple_parameter" {
                     let s: String = self.find_name(&mut cursor.clone(), &file).expect("no name");
                     let taint = Taint {
@@ -245,20 +245,16 @@ impl<'a> Analyzer<'a> {
                         name: s,
                         scope: self.current_scope(&mut cursor.clone(), &file),
                     };
-                    taints.push(taint.clone());
-                    self.taints.push(taint.clone());
-
-                    let vertex = Vertex::Source {
-                        tainting: taint,
-                        context_stack: self.context_stack.clone(),
-                    };
-                    self.graph.push(vertex);
+                    params.push(taint);
                 }
             } else {
                 visited = true;
             }
+
+            self.resolved_params
+                .insert(name.to_string(), params.clone());
+            //println!("{:?}", self.resolved_params);
         }
-        taints
     }
 
     fn find_name(&self, cursor: &mut TreeCursor, file: &'a File<'a>) -> Result<String, ()> {
@@ -288,14 +284,102 @@ impl<'a> Analyzer<'a> {
     }
 
     fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>, parent_taint: Taint) {
-        let arc = Arc {
-            context_stack: self.context_stack.clone(),
-        };
         let mut path: Vec<PathNode> = Vec::new();
         let mut vertex: Option<Vertex> = None;
         let mut child_taint: Option<Taint> = None;
         while cursor.goto_parent() {
             match cursor.node().kind() {
+                "argument" => {
+                    let arg_id = cursor.field_id();
+                    let mut index = 0;
+                    cursor.goto_parent();
+                    cursor.goto_first_child();
+                    while cursor.field_id() != arg_id {
+                        index += 1;
+                        cursor.goto_next_sibling();
+                    }
+                    if cursor.goto_parent() && cursor.goto_parent() {
+                        match cursor.node().kind() {
+                            "function_call_expression" => {
+                                let save_cursor = cursor.clone();
+                                let name = self.find_name(&mut cursor.clone(), &file);
+                                if let Ok(name) = name {
+                                    let mut cont = true;
+                                    for f in self.files {
+                                        if let Some(resolved) = f.resolved.get(&name) {
+                                            cont = false;
+                                            match resolved {
+                                                Resolved::Function { name, cursor, .. } => {
+                                                    self.load_param_sources(
+                                                        &mut cursor.clone(),
+                                                        f,
+                                                        name,
+                                                    );
+                                                    let params =
+                                                        self.resolved_params.get(name).unwrap().clone();
+                                                    self.taints
+                                                        .push(params.get(index).unwrap().clone());
+                                                    self.graph.push(Vertex::Param {
+                                                        tainting: params
+                                                            .get(index)
+                                                            .unwrap()
+                                                            .clone(),
+                                                        context_stack: self.context_stack.clone(),
+                                                    });
+                                                    println!("bbbb {:?}", cursor.node().kind());
+                                                    self.context_stack.push(Context {
+                                                        kind: save_cursor.node().kind().to_string(),
+                                                        name: node_to_string(
+                                                            &cursor.node(),
+                                                            &file.source_code,
+                                                        ),
+                                                    });
+                                                    self.graph(&mut cursor.clone(), &f);
+                                                    self.context_stack.pop();
+                                                    self.graphed_blocks.insert(name.to_string());
+
+
+                                                    path.push(PathNode::Resolved {
+                                                        name: name.clone(),
+                                                    });
+                                                    vertex = Some(Vertex::Resolved {
+                                                        parent_taint: parent_taint.clone(),
+                                                        name: name.to_string(),
+                                                        path: path.clone(),
+                                                        context_stack: self.context_stack.clone(),
+                                                    });
+                                                }
+                                                _ => (),
+                                            }
+                                        }
+                                    }
+                                    if cont {
+                                        path.push(PathNode::Unresolved { name: name.clone() });
+                                        vertex = Some(Vertex::Unresolved {
+                                            parent_taint: parent_taint.clone(),
+                                            name: name.to_string(),
+                                            path: path.clone(),
+                                            context_stack: self.context_stack.clone(),
+                                        });
+                                    }
+                                }
+                            }
+                            "method_call_expression" => {
+                                let name = self.find_name(&mut cursor.clone(), &file);
+                                if let Ok(name) = name {
+                                    path.push(PathNode::Unresolved { name: name.clone() });
+                                    vertex = Some(Vertex::Unresolved {
+                                        parent_taint: parent_taint.clone(),
+                                        name,
+                                        path: path.clone(),
+                                        context_stack: self.context_stack.clone(),
+                                    });
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+                }
                 "assignment_expression" => {
                     if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
                         child_taint = Some(Taint {
@@ -311,50 +395,6 @@ impl<'a> Analyzer<'a> {
                             context_stack: self.context_stack.clone(),
                         });
                         break;
-                    }
-                }
-                "function_call_expression" => {
-                    let name = self.find_name(&mut cursor.clone(), &file);
-                    if let Ok(name) = name {
-                        let mut cont = true;
-                        for f in self.files {
-                            if let Some(resolved) = f.resolved.get(&name) {
-                                cont = false;
-                                match resolved {
-                                    Resolved::Function { name, .. } => {
-                                        path.push(PathNode::Resolved { name: name.clone() });
-                                        vertex = Some(Vertex::Resolved {
-                                            parent_taint: parent_taint.clone(),
-                                            name: name.to_string(),
-                                            path: path.clone(),
-                                            context_stack: self.context_stack.clone(),
-                                        });
-                                    }
-                                    _ => (),
-                                }
-                            }
-                        }
-                        if cont {
-                            path.push(PathNode::Unresolved { name: name.clone() });
-                            vertex = Some(Vertex::Unresolved {
-                                parent_taint: parent_taint.clone(),
-                                name: name.to_string(),
-                                path: path.clone(),
-                                context_stack: self.context_stack.clone(),
-                            });
-                        }
-                    }
-                }
-                "method_call_expression" => {
-                    let name = self.find_name(&mut cursor.clone(), &file);
-                    if let Ok(name) = name {
-                        path.push(PathNode::Unresolved { name: name.clone() });
-                        vertex = Some(Vertex::Unresolved {
-                            parent_taint: parent_taint.clone(),
-                            name,
-                            path: path.clone(),
-                            context_stack: self.context_stack.clone(),
-                        });
                     }
                 }
                 "echo_statement" => {

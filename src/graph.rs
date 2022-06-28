@@ -214,7 +214,11 @@ impl Graph {
                     );
                 }
             }
-            Vertex::Source { tainting, context_stack, .. } => {
+            Vertex::Source {
+                tainting,
+                context_stack,
+                ..
+            } => {
                 if self.leaves.contains_key(&tainting) {
                     let leaf = self.leaves.get_mut(&tainting).unwrap();
                     leaf.push(Leaf {
