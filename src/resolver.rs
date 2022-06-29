@@ -1,4 +1,3 @@
-use crate::Taint;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -12,6 +11,7 @@ pub enum Resolved<'a> {
     Function {
         name: String,
         cursor: TreeCursor<'a>,
+        params: Vec<String>,
     },
     Class {
         name: String,
@@ -20,6 +20,7 @@ pub enum Resolved<'a> {
     Method {
         name: String,
         cursor: TreeCursor<'a>,
+        params: Vec<String>,
     },
     Property {
         name: String,
@@ -46,7 +47,6 @@ impl<'a> Hash for File<'a> {
     }
 }
 
-impl<'a> Eq for File<'a> {}
 impl<'a> PartialEq for File<'a> {
     fn eq(&self, other: &Self) -> bool {
         return self.filename == other.filename;
@@ -78,13 +78,18 @@ impl<'a> File<'a> {
         };
         self.resolved.insert("ROOT".to_string(), resolved);
 
+        let start_node = cursor.node().id();
         let mut visited = false;
         loop {
+            //println!("name: {:?}", cursor.node().kind());
             if visited {
                 if cursor.goto_next_sibling() {
                     // enter
                     self.resolve_node(&cursor.clone());
                 } else if cursor.goto_parent() {
+                    if cursor.node().id() == start_node {
+                        break;
+                    }
                 } else {
                     break;
                 }
@@ -97,7 +102,50 @@ impl<'a> File<'a> {
         }
     }
 
+    fn get_params(&self, cursor: &mut TreeCursor) -> Vec<String> {
+        let s = node_to_string(&cursor.node(), self.source_code);
+        println!("{}", s);
+        let mut params: Vec<String> = Vec::new();
+        //println!("name: {:?}", cursor.node().kind());
+        let start_node = cursor.node().id();
+        let mut visited = false;
+        loop {
+            println!("name: {:?}", cursor.node().kind());
+            println!("{:?}", self.find_name(&mut cursor.clone()));
+            if visited {
+                if cursor.goto_next_sibling() {
+                    // enter
+                    if cursor.node().kind() == "simple_parameter" || cursor.node().kind() == "formal_parameters" {
+                        if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                        println!("{}", name);
+                        params.push(name);
+                        }
+                    }
+                } else if cursor.goto_parent() {
+                    if cursor.node().id() == start_node {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else if cursor.goto_first_child() {
+                // enter
+                    if cursor.node().kind() == "simple_parameter" || cursor.node().kind() == "formal_parameters" {
+                        if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                        params.push(name);
+                        }
+                    }
+            } else {
+                visited = true;
+            }
+        }
+
+        println!("params: {:?}", params);
+        params
+    }
+
     fn resolve_node(&mut self, cursor: &TreeCursor<'a>) {
+        //println!("name: {:?}", cursor.node().kind());
         let node = cursor.node();
         match node.kind() {
             "function_definition" => {
@@ -105,6 +153,7 @@ impl<'a> File<'a> {
                     let value = Resolved::Function {
                         name: name.clone(),
                         cursor: cursor.clone(),
+                        params: self.get_params(&mut cursor.clone()),
                     };
                     self.resolved.insert(name, value);
                 }
@@ -114,6 +163,7 @@ impl<'a> File<'a> {
                     let value = Resolved::Method {
                         name: name.clone(),
                         cursor: cursor.clone(),
+                        params: self.get_params(&mut cursor.clone()),
                     };
                     self.resolved.insert(name, value);
                 }

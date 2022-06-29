@@ -24,6 +24,7 @@ fn main() {
     files.push(file);
     files.push(file1);
 
+    println!("done building files");
     let mut analyzer = Analyzer::new(&files, ruleset);
     println!("{}", analyzer.graph.dump());
 }

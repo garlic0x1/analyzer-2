@@ -35,8 +35,8 @@ pub struct Analyzer<'a> {
     pub graph: Graph,
     context_stack: Vec<Context>,
     taints: Vec<Taint>,
-    resolved_params: HashMap<String, Vec<Taint>>,
 }
+
 impl<'a> Analyzer<'a> {
     pub fn new(files: &'a Vec<File<'a>>, rules: rules::Rules) -> Self {
         let mut s = Self {
@@ -46,7 +46,6 @@ impl<'a> Analyzer<'a> {
             graph: Graph::new(),
             taints: Vec::new(),
             context_stack: Vec::new(),
-            resolved_params: HashMap::new(),
         };
         // initialize the taint vec with sources of input
         let start_file_reference: &'a File<'a> = &s.files[0];
@@ -124,6 +123,7 @@ impl<'a> Analyzer<'a> {
     // call with a cloned TreeCursor to not lose our place in the traversal
     fn enter_node(&mut self, cursor: &mut TreeCursor, index: u32, file: &'a File<'a>) -> bool {
         let node = cursor.node();
+        ////println!("Node: {}", node.kind());
         match node.kind() {
             // return false to not crawl into these
             "function_definition" | "method_declaration" | "class_declaration" => return false,
@@ -160,7 +160,7 @@ impl<'a> Analyzer<'a> {
                 }
             }
             "if_statement" | "do_statement" | "for_statement" => {
-                println!("aaa {:?}", node.kind());
+                //println!("aaa {:?}", node.kind());
                 self.context_stack.push(Context {
                     kind: node.kind().to_string(),
                     name: node_to_string(&node, &file.source_code),
@@ -183,11 +183,10 @@ impl<'a> Analyzer<'a> {
                     for f in self.files {
                         if let Some(resolved) = f.resolved.get(&name) {
                             match resolved {
-                                Resolved::Function { name, cursor } => {
+                                Resolved::Function { name, cursor, .. } => {
                                     if self.graphed_blocks.contains(name) {
                                         continue;
                                     }
-                                    self.load_param_sources(&mut cursor.clone(), f, name);
                                     self.context_stack.push(Context {
                                         kind: node.kind().to_string(),
                                         name: node_to_string(&node, &f.source_code),
@@ -203,57 +202,6 @@ impl<'a> Analyzer<'a> {
                 }
             }
             _ => (),
-        }
-    }
-
-    fn load_param_sources(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>, name: &str) {
-        println!("{}", cursor.node().kind());
-        println!("{:?}", cursor.field_id());
-        let start_node = cursor.node().id();
-        let mut visited = false;
-        let mut stack = Vec::new();
-        let mut params = Vec::new();
-        loop {
-            if visited {
-                if cursor.goto_next_sibling() {
-                    let inc = stack.pop().expect("empty stack");
-                    stack.push(inc + 1);
-                    visited = false;
-                    if cursor.node().kind() == "simple_parameter" {
-                        let s = self.find_name(&mut cursor.clone(), file).expect("no name");
-                        let taint = Taint {
-                            kind: "param".to_string(),
-                            name: s,
-                            scope: self.current_scope(&mut cursor.clone(), &file),
-                        };
-                        params.push(taint);
-                    }
-                } else if cursor.goto_parent() {
-                    stack.pop();
-                    if cursor.node().id() == start_node {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            } else if cursor.goto_first_child() {
-                stack.push(0);
-                if cursor.node().kind() == "simple_parameter" {
-                    let s: String = self.find_name(&mut cursor.clone(), &file).expect("no name");
-                    let taint = Taint {
-                        kind: "source".to_string(),
-                        name: s,
-                        scope: self.current_scope(&mut cursor.clone(), &file),
-                    };
-                    params.push(taint);
-                }
-            } else {
-                visited = true;
-            }
-
-            self.resolved_params
-                .insert(name.to_string(), params.clone());
-            //println!("{:?}", self.resolved_params);
         }
     }
 
@@ -283,6 +231,19 @@ impl<'a> Analyzer<'a> {
         Err(())
     }
 
+    fn find_index(&mut self, cursor: &mut TreeCursor) -> usize {
+        let arg_id = cursor.field_id();
+        let mut index = 0;
+        cursor.goto_parent();
+        cursor.goto_first_child();
+        while cursor.field_id() != arg_id {
+            index += 1;
+            cursor.goto_next_sibling();
+        }
+
+        index
+    }
+
     fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>, parent_taint: Taint) {
         let mut path: Vec<PathNode> = Vec::new();
         let mut vertex: Option<Vertex> = None;
@@ -290,14 +251,7 @@ impl<'a> Analyzer<'a> {
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "argument" => {
-                    let arg_id = cursor.field_id();
-                    let mut index = 0;
-                    cursor.goto_parent();
-                    cursor.goto_first_child();
-                    while cursor.field_id() != arg_id {
-                        index += 1;
-                        cursor.goto_next_sibling();
-                    }
+                    let index = self.find_index(&mut cursor.clone());
                     if cursor.goto_parent() && cursor.goto_parent() {
                         match cursor.node().kind() {
                             "function_call_expression" => {
@@ -309,24 +263,29 @@ impl<'a> Analyzer<'a> {
                                         if let Some(resolved) = f.resolved.get(&name) {
                                             cont = false;
                                             match resolved {
-                                                Resolved::Function { name, cursor, .. } => {
-                                                    self.load_param_sources(
-                                                        &mut cursor.clone(),
-                                                        f,
-                                                        name,
-                                                    );
-                                                    let params =
-                                                        self.resolved_params.get(name).unwrap().clone();
-                                                    self.taints
-                                                        .push(params.get(index).unwrap().clone());
-                                                    self.graph.push(Vertex::Param {
-                                                        tainting: params
+                                                Resolved::Function {
+                                                    name,
+                                                    cursor,
+                                                    params,
+                                                } => {
+                                                    let taint = Taint {
+                                                        kind: "param".to_string(),
+                                                        name: params
                                                             .get(index)
                                                             .unwrap()
-                                                            .clone(),
+                                                            .to_string(),
+                                                        scope: Scope {
+                                                            filename: Some(f.filename.to_string()),
+                                                            function: Some(name.to_string()),
+                                                            class: None,
+                                                        },
+                                                    };
+                                                    self.taints.push(taint.clone());
+                                                    self.graph.push(Vertex::Param {
+                                                        tainting: taint.clone(),
                                                         context_stack: self.context_stack.clone(),
                                                     });
-                                                    println!("bbbb {:?}", cursor.node().kind());
+                                                    //println!("bbbb {:?}", cursor.node().kind());
                                                     self.context_stack.push(Context {
                                                         kind: save_cursor.node().kind().to_string(),
                                                         name: node_to_string(
@@ -337,7 +296,6 @@ impl<'a> Analyzer<'a> {
                                                     self.graph(&mut cursor.clone(), &f);
                                                     self.context_stack.pop();
                                                     self.graphed_blocks.insert(name.to_string());
-
 
                                                     path.push(PathNode::Resolved {
                                                         name: name.clone(),
