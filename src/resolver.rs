@@ -103,6 +103,7 @@ impl<'a> File<'a> {
     }
 
     fn get_params(&self, cursor: &mut TreeCursor) -> Vec<String> {
+                        println!("getting params: {}", node_to_string(&cursor.node(), self.source_code));
         let mut params: Vec<String> = Vec::new();
         let start_node = cursor.node().id();
         let mut visited = false;
@@ -110,19 +111,13 @@ impl<'a> File<'a> {
             if visited {
                 if cursor.goto_next_sibling() {
                     // enter
-                    println!("kind: {:?}", cursor.node().kind());
-                    println!("name: {:?}", self.find_name(&mut cursor.clone()));
-                    println!(
-                        "code: {}",
-                        node_to_string(&cursor.node(), &self.source_code)
-                    );
-                    if cursor.node().kind() == "simple_parameter"
-                        || cursor.node().kind() == "formal_parameters"
-                    {
+                    if cursor.node().kind() == "simple_parameter" {
+                        println!("parameter: {}", node_to_string(&cursor.node(), self.source_code));
                         for name in self.find_name(&mut cursor.clone()) {
                             params.push(name);
                         }
                     }
+                    visited = false;
                 } else if cursor.goto_parent() {
                     if cursor.node().id() == start_node {
                         break;
@@ -132,11 +127,8 @@ impl<'a> File<'a> {
                 }
             } else if cursor.goto_first_child() {
                 // enter
-                println!("kind: {:?}", cursor.node().kind());
-                println!("name: {:?}", self.find_name(&mut cursor.clone()));
-                if cursor.node().kind() == "simple_parameter"
-                    || cursor.node().kind() == "formal_parameters"
-                {
+                if cursor.node().kind() == "simple_parameter" {
+                        println!("parameter: {}", node_to_string(&cursor.node(), self.source_code));
                     for name in self.find_name(&mut cursor.clone()) {
                         params.push(name);
                     }
