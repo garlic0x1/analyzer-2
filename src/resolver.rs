@@ -103,22 +103,24 @@ impl<'a> File<'a> {
     }
 
     fn get_params(&self, cursor: &mut TreeCursor) -> Vec<String> {
-        let s = node_to_string(&cursor.node(), self.source_code);
-        println!("{}", s);
         let mut params: Vec<String> = Vec::new();
-        //println!("name: {:?}", cursor.node().kind());
         let start_node = cursor.node().id();
         let mut visited = false;
         loop {
-            println!("name: {:?}", cursor.node().kind());
-            println!("{:?}", self.find_name(&mut cursor.clone()));
             if visited {
                 if cursor.goto_next_sibling() {
                     // enter
-                    if cursor.node().kind() == "simple_parameter" || cursor.node().kind() == "formal_parameters" {
-                        if let Ok(name) = self.find_name(&mut cursor.clone()) {
-                        println!("{}", name);
-                        params.push(name);
+                    println!("kind: {:?}", cursor.node().kind());
+                    println!("name: {:?}", self.find_name(&mut cursor.clone()));
+                    println!(
+                        "code: {}",
+                        node_to_string(&cursor.node(), &self.source_code)
+                    );
+                    if cursor.node().kind() == "simple_parameter"
+                        || cursor.node().kind() == "formal_parameters"
+                    {
+                        for name in self.find_name(&mut cursor.clone()) {
+                            params.push(name);
                         }
                     }
                 } else if cursor.goto_parent() {
@@ -130,11 +132,15 @@ impl<'a> File<'a> {
                 }
             } else if cursor.goto_first_child() {
                 // enter
-                    if cursor.node().kind() == "simple_parameter" || cursor.node().kind() == "formal_parameters" {
-                        if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                println!("kind: {:?}", cursor.node().kind());
+                println!("name: {:?}", self.find_name(&mut cursor.clone()));
+                if cursor.node().kind() == "simple_parameter"
+                    || cursor.node().kind() == "formal_parameters"
+                {
+                    for name in self.find_name(&mut cursor.clone()) {
                         params.push(name);
-                        }
                     }
+                }
             } else {
                 visited = true;
             }
@@ -149,7 +155,7 @@ impl<'a> File<'a> {
         let node = cursor.node();
         match node.kind() {
             "function_definition" => {
-                if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                for name in self.find_name(&mut cursor.clone()) {
                     let value = Resolved::Function {
                         name: name.clone(),
                         cursor: cursor.clone(),
@@ -159,7 +165,7 @@ impl<'a> File<'a> {
                 }
             }
             "method_definition" => {
-                if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                for name in self.find_name(&mut cursor.clone()) {
                     let value = Resolved::Method {
                         name: name.clone(),
                         cursor: cursor.clone(),
@@ -169,7 +175,7 @@ impl<'a> File<'a> {
                 }
             }
             "property_name" => {
-                if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                for name in self.find_name(&mut cursor.clone()) {
                     let value = Resolved::Property {
                         name: name.clone(),
                         cursor: cursor.clone(),
@@ -178,7 +184,7 @@ impl<'a> File<'a> {
                 }
             }
             "class_definition" => {
-                if let Ok(name) = self.find_name(&mut cursor.clone()) {
+                for name in self.find_name(&mut cursor.clone()) {
                     let value = Resolved::Class {
                         name: name.clone(),
                         cursor: cursor.clone(),
@@ -190,31 +196,35 @@ impl<'a> File<'a> {
         }
     }
 
-    fn find_name(&self, cursor: &mut TreeCursor) -> Result<String, ()> {
+    pub fn find_name(&self, cursor: &mut TreeCursor) -> Option<String> {
         let mut visited = false;
+        let start_node = cursor.node().id();
         loop {
             if visited {
                 if cursor.goto_next_sibling() {
                     visited = false;
                     if cursor.node().kind() == "name" {
                         let s: String = node_to_string(&cursor.node(), self.source_code);
-                        return Ok(s);
+                        return Some(s);
                     }
                 } else if cursor.goto_parent() {
+                    if cursor.node().id() == start_node {
+                        break;
+                    }
                 } else {
                     break;
                 }
             } else if cursor.goto_first_child() {
                 if cursor.node().kind() == "name" {
                     let s: String = node_to_string(&cursor.node(), self.source_code);
-                    return Ok(s);
+                        return Some(s);
                 }
             } else {
                 visited = true;
             }
         }
 
-        Err(())
+        None
     }
 }
 

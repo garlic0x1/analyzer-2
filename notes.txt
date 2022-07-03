@@ -1,0 +1,19 @@
+The goal is to take a repository of PHP code, parse them into syntax trees, and then create a flow graph.
+
+Input: PHP source code organized into files
+
+1: parse each file into a syntax tree ( the original code still needs to be stored with the tree to extract names )
+
+Objects needed: File (owns source code, tree, and resolved cursors)
+			source code
+			parsed tree
+			resolved objects
+		Taint (name and scope of tainted object)
+			kind
+			name
+			scope
+		Analyzer (keeps a list of taints, and pushes tainted vertices to the graph)
+		Graph (flow graph of the plugin)
+		
+
+Output: Flow Graph

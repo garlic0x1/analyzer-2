@@ -8,6 +8,5 @@ $value = $local_var;
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
 
-test($filtered);
-test($input);
+$newval = test($input, $filtered);
 ?>

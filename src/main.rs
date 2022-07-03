@@ -20,6 +20,7 @@ fn main() {
     let tree1: Tree = parser.parse(&source_code1, None).unwrap();
     let file1 = File::new("test1.php".to_string(), &tree1, &source_code1);
     let file = File::new("test.php".to_string(), &tree, &source_code);
+
     let mut files = Vec::new();
     files.push(file);
     files.push(file1);

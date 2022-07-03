@@ -1,5 +1,6 @@
 use crate::graph::*;
 use crate::node_to_string;
+use crate::resolver::File;
 use crate::resolver::*;
 use crate::rules;
 use std::collections::HashMap;
@@ -135,11 +136,11 @@ impl<'a> Analyzer<'a> {
                         return true;
                     }
                 }
-                let result = self.find_name(&mut cursor.clone(), &file);
-                if let Ok(var_name) = &result {
+                let result = file.find_name(&mut cursor.clone());
+                if let Some(var_name) = result {
                     for t in &self.taints.clone() {
                         if t.kind == "variable" {
-                            if &t.name == var_name {
+                            if t.name == var_name {
                                 let taint = t.clone();
                                 self.trace_taint(cursor, &file, taint);
                             }
@@ -178,8 +179,8 @@ impl<'a> Analyzer<'a> {
                 self.context_stack.pop();
             }
             "function_call_expression" | "method_call_expression" => {
-                let name = self.find_name(&mut cursor.clone(), &file);
-                if let Ok(name) = name {
+                let name = file.find_name(&mut cursor.clone());
+                if let Some(name) = name {
                     for f in self.files {
                         if let Some(resolved) = f.resolved.get(&name) {
                             match resolved {
@@ -205,32 +206,6 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn find_name(&self, cursor: &mut TreeCursor, file: &'a File<'a>) -> Result<String, ()> {
-        let mut visited = false;
-        loop {
-            if visited {
-                if cursor.goto_next_sibling() {
-                    visited = false;
-                    if cursor.node().kind() == "name" {
-                        let s: String = node_to_string(&cursor.node(), file.source_code);
-                        return Ok(s);
-                    }
-                } else if cursor.goto_parent() {
-                } else {
-                    break;
-                }
-            } else if cursor.goto_first_child() {
-                if cursor.node().kind() == "name" {
-                    let s: String = node_to_string(&cursor.node(), file.source_code);
-                    return Ok(s);
-                }
-            } else {
-                visited = true;
-            }
-        }
-        Err(())
-    }
-
     fn find_index(&mut self, cursor: &mut TreeCursor) -> usize {
         let arg_id = cursor.field_id();
         let mut index = 0;
@@ -245,104 +220,100 @@ impl<'a> Analyzer<'a> {
     }
 
     fn trace_taint(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>, parent_taint: Taint) {
+        println!("tracing taint: {:?}", parent_taint);
         let mut path: Vec<PathNode> = Vec::new();
         let mut vertex: Option<Vertex> = None;
         let mut child_taint: Option<Taint> = None;
+        let mut index = 0;
         while cursor.goto_parent() {
+            println!("trace: {:?}", cursor.node().kind());
             match cursor.node().kind() {
                 "argument" => {
-                    let index = self.find_index(&mut cursor.clone());
-                    if cursor.goto_parent() && cursor.goto_parent() {
-                        match cursor.node().kind() {
-                            "function_call_expression" => {
-                                let save_cursor = cursor.clone();
-                                let name = self.find_name(&mut cursor.clone(), &file);
-                                if let Ok(name) = name {
-                                    let mut cont = true;
-                                    for f in self.files {
-                                        if let Some(resolved) = f.resolved.get(&name) {
-                                            cont = false;
-                                            match resolved {
-                                                Resolved::Function {
-                                                    name,
-                                                    cursor,
-                                                    params,
-                                                } => {
-                                                    let taint = Taint {
-                                                        kind: "param".to_string(),
-                                                        name: params
-                                                            .get(index)
-                                                            .unwrap()
-                                                            .to_string(),
-                                                        scope: Scope {
-                                                            filename: Some(f.filename.to_string()),
-                                                            function: Some(name.to_string()),
-                                                            class: None,
-                                                        },
-                                                    };
-                                                    self.taints.push(taint.clone());
-                                                    self.graph.push(Vertex::Param {
-                                                        tainting: taint.clone(),
-                                                        context_stack: self.context_stack.clone(),
-                                                    });
-                                                    //println!("bbbb {:?}", cursor.node().kind());
-                                                    self.context_stack.push(Context {
-                                                        kind: save_cursor.node().kind().to_string(),
-                                                        name: node_to_string(
-                                                            &cursor.node(),
-                                                            &file.source_code,
-                                                        ),
-                                                    });
-                                                    self.graph(&mut cursor.clone(), &f);
-                                                    self.context_stack.pop();
-                                                    self.graphed_blocks.insert(name.to_string());
+                    index = self.find_index(&mut cursor.clone());
+                }
+                "function_call_expression" => {
+                    let save_cursor = cursor.clone();
+                    let name = file.find_name(&mut cursor.clone());
+                    if let Some(name) = name {
+                        let mut cont = true;
+                        for f in self.files {
+                            println!("{:?}", f.filename);
+                            if let Some(resolved) = f.resolved.get(&name) {
+                                cont = false;
+                                match resolved {
+                                    Resolved::Function {
+                                        name,
+                                        cursor,
+                                        params,
+                                    } => {
+                                        println!("resolved fn node: {:?}", cursor.node().kind());
+                                        println!("found params: {:?}", params);
+                                        let taint = Taint {
+                                            kind: "variable".to_string(),
+                                            name: params.get(index).unwrap().to_string(),
+                                            scope: Scope {
+                                                filename: Some(f.filename.to_string()),
+                                                function: Some(name.to_string()),
+                                                class: None,
+                                            },
+                                        };
+                                        self.taints.push(taint.clone());
+                                        self.graph.push(Vertex::Param {
+                                            tainting: taint.clone(),
+                                            context_stack: self.context_stack.clone(),
+                                        });
+                                        //println!("bbbb {:?}", cursor.node().kind());
+                                        self.context_stack.push(Context {
+                                            kind: save_cursor.node().kind().to_string(),
+                                            name: node_to_string(
+                                                &save_cursor.node(),
+                                                &file.source_code,
+                                            ),
+                                        });
+                                        self.graphed_blocks.insert(name.to_string());
+                                        self.graph(&mut cursor.clone(), f);
+                                        self.context_stack.pop();
 
-                                                    path.push(PathNode::Resolved {
-                                                        name: name.clone(),
-                                                    });
-                                                    vertex = Some(Vertex::Resolved {
-                                                        parent_taint: parent_taint.clone(),
-                                                        name: name.to_string(),
-                                                        path: path.clone(),
-                                                        context_stack: self.context_stack.clone(),
-                                                    });
-                                                }
-                                                _ => (),
-                                            }
-                                        }
-                                    }
-                                    if cont {
-                                        path.push(PathNode::Unresolved { name: name.clone() });
-                                        vertex = Some(Vertex::Unresolved {
+                                        path.push(PathNode::Resolved { name: name.clone() });
+                                        vertex = Some(Vertex::Resolved {
                                             parent_taint: parent_taint.clone(),
                                             name: name.to_string(),
                                             path: path.clone(),
                                             context_stack: self.context_stack.clone(),
                                         });
                                     }
+                                    _ => (),
                                 }
                             }
-                            "method_call_expression" => {
-                                let name = self.find_name(&mut cursor.clone(), &file);
-                                if let Ok(name) = name {
-                                    path.push(PathNode::Unresolved { name: name.clone() });
-                                    vertex = Some(Vertex::Unresolved {
-                                        parent_taint: parent_taint.clone(),
-                                        name,
-                                        path: path.clone(),
-                                        context_stack: self.context_stack.clone(),
-                                    });
-                                }
-                            }
-                            _ => (),
+                        }
+                        if cont {
+                            path.push(PathNode::Unresolved { name: name.clone() });
+                            vertex = Some(Vertex::Unresolved {
+                                parent_taint: parent_taint.clone(),
+                                name: name.to_string(),
+                                path: path.clone(),
+                                context_stack: self.context_stack.clone(),
+                            });
                         }
                     }
                 }
+                "method_call_expression" => {
+                    let name = file.find_name(&mut cursor.clone());
+                    if let Some(name) = name {
+                        path.push(PathNode::Unresolved { name: name.clone() });
+                        vertex = Some(Vertex::Unresolved {
+                            parent_taint: parent_taint.clone(),
+                            name: name.to_string(),
+                            path: path.clone(),
+                            context_stack: self.context_stack.clone(),
+                        });
+                    }
+                }
                 "assignment_expression" => {
-                    if let Ok(name) = self.find_name(&mut cursor.clone(), &file) {
+                    if let Some(name) = file.find_name(&mut cursor.clone()) {
                         child_taint = Some(Taint {
                             kind: "variable".to_string(),
-                            name,
+                            name: name.clone(),
                             scope: self.current_scope(&mut cursor.clone(), &file),
                         });
                         vertex = Some(Vertex::Assignment {
@@ -358,6 +329,10 @@ impl<'a> Analyzer<'a> {
                 "echo_statement" => {
                     // sink
                     // break
+                }
+                "formal_parameters" | "simple_parameter" => {
+                    println!("breaking!");
+                    return;
                 }
                 _ => (),
             }
@@ -380,12 +355,12 @@ impl<'a> Analyzer<'a> {
         while cursor.goto_parent() {
             match cursor.node().kind() {
                 "function_definition" | "method_declaration" => {
-                    let name = self.find_name(&mut cursor.clone(), &file).expect("no name");
-                    scope.function = Some(name);
+                    let name = file.find_name(&mut cursor.clone());
+                    scope.function = Some(name.unwrap().to_string());
                 }
                 "class_declaration" => {
-                    let name = self.find_name(&mut cursor.clone(), &file).expect("no name");
-                    scope.class = Some(name);
+                    let name = file.find_name(&mut cursor.clone());
+                    scope.class = Some(name.unwrap().to_string());
                 }
                 _ => (),
             }
