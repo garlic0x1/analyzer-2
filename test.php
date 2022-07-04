@@ -4,7 +4,7 @@ $value = "";
 if (false) {
 	$value = intval($input);
 }
-$value = $local_var;
+query($value);
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
 

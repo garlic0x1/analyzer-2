@@ -78,10 +78,10 @@ impl<'a> Analyzer<'a> {
         let mut cursor = t.walk();
 
         // start traversing with root of main file
-        self.graph(&mut cursor, &start_file);
+        self.graph(&mut cursor, &start_file, &mut None);
     }
 
-    fn graph(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>) {
+    fn graph(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>, local_taint: &Option<Taint>) {
         let start_node = cursor.node().id();
         let mut visited = false;
         let mut stack = Vec::new();
@@ -90,7 +90,7 @@ impl<'a> Analyzer<'a> {
                 if cursor.goto_next_sibling() {
                     let inc = stack.pop().expect("empty stack");
                     stack.push(inc + 1);
-                    let cont = self.enter_node(&mut cursor.clone(), inc, &file);
+                    let cont = self.enter_node(&mut cursor.clone(), inc, file, &local_taint);
                     if !cont {
                         if cursor.goto_next_sibling() {
                             visited = false;
@@ -103,7 +103,7 @@ impl<'a> Analyzer<'a> {
                     visited = false;
                 } else if cursor.goto_parent() {
                     stack.pop();
-                    self.leave_node(&mut cursor.clone(), &file);
+                    self.leave_node(&mut cursor.clone(), file);
                     if cursor.node().id() == start_node {
                         break;
                     }
@@ -112,7 +112,7 @@ impl<'a> Analyzer<'a> {
                 }
             } else if cursor.goto_first_child() {
                 stack.push(0);
-                self.enter_node(&mut cursor.clone(), 0, &file);
+                self.enter_node(&mut cursor.clone(), 0, file, local_taint);
             } else {
                 visited = true;
             }
@@ -120,7 +120,7 @@ impl<'a> Analyzer<'a> {
     }
 
     // call with a cloned TreeCursor to not lose our place in the traversal
-    fn enter_node(&mut self, cursor: &mut TreeCursor, index: u32, file: &'a File<'a>) -> bool {
+    fn enter_node(&mut self, cursor: &mut TreeCursor, index: u32, file: &'a File<'a>, local_taint: &Option<Taint>) -> bool {
         let node = cursor.node();
         ////println!("Node: {}", node.kind());
         match node.kind() {
@@ -135,6 +135,9 @@ impl<'a> Analyzer<'a> {
                     }
                 }
                 let result = file.find_name(&mut cursor.clone());
+                if let Some(t) = local_taint.clone() {
+                    self.taints.push(t);
+                }
                 if let Some(var_name) = result {
                     for t in &self.taints.clone() {
                         if t.kind == "variable" {
@@ -156,6 +159,9 @@ impl<'a> Analyzer<'a> {
                             }
                         }
                     }
+                }
+                if let Some(t) = local_taint.clone() {
+                    self.taints.pop();
                 }
             }
             "if_statement" | "do_statement" | "for_statement" => {
@@ -190,7 +196,7 @@ impl<'a> Analyzer<'a> {
                                         kind: node.kind().to_string(),
                                         name: node_to_string(&node, &f.source_code),
                                     });
-                                    self.graph(&mut cursor.clone(), f);
+                                    self.graph(&mut cursor.clone(), f, &mut None);
                                     self.context_stack.pop();
                                     self.graphed_blocks.insert(name.to_string());
                                 }
@@ -226,11 +232,9 @@ impl<'a> Analyzer<'a> {
         let mut child_taint: Option<Taint> = None;
         let mut index = 0;
         while cursor.goto_parent() {
-            println!("trace: {:?}", cursor.node().kind());
             match cursor.node().kind() {
                 "argument" => {
                     index = self.find_index(&mut cursor.clone());
-                    println!("index: {}", index);
                 }
                 "function_call_expression" => {
                     let save_cursor = cursor.clone();
@@ -238,7 +242,6 @@ impl<'a> Analyzer<'a> {
                     if let Some(name) = name {
                         let mut cont = true;
                         for f in self.files {
-                            println!("{:?}", f.filename);
                             if let Some(resolved) = f.resolved.get(&name) {
                                 cont = false;
                                 match resolved {
@@ -250,7 +253,7 @@ impl<'a> Analyzer<'a> {
                                         println!("resolved fn node: {:?}", cursor.node().kind());
                                         println!("found params: {:?}", params);
                                         let taint = Taint {
-                                            kind: "variable".to_string(),
+                                            kind: "param".to_string(),
                                             name: params.get(index).unwrap().to_string(),
                                             scope: Scope {
                                                 filename: Some(f.filename.to_string()),
@@ -258,7 +261,6 @@ impl<'a> Analyzer<'a> {
                                                 class: None,
                                             },
                                         };
-                                        self.taints.push(taint.clone());
                                         self.graph.push(Vertex::Param {
                                             tainting: taint.clone(),
                                             context_stack: self.context_stack.clone(),
@@ -272,7 +274,7 @@ impl<'a> Analyzer<'a> {
                                             ),
                                         });
                                         self.graphed_blocks.insert(name.to_string());
-                                        self.graph(&mut cursor.clone(), f);
+                                        self.graph(&mut cursor.clone(), f, &mut Some(taint));
                                         self.context_stack.pop();
 
                                         path.push(PathNode::Resolved { name: name.clone() });
