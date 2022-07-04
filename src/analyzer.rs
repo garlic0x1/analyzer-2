@@ -250,8 +250,13 @@ impl<'a> Analyzer<'a> {
                                         cursor,
                                         params,
                                     } => {
-                                        println!("resolved fn node: {:?}", cursor.node().kind());
-                                        println!("found params: {:?}", params);
+                                        path.push(PathNode::Resolved { name: name.clone() });
+                                        vertex = Some(Vertex::Resolved {
+                                            parent_taint: parent_taint.clone(),
+                                            name: name.to_string(),
+                                            path: path.clone(),
+                                            context_stack: self.context_stack.clone(),
+                                        });
                                         let taint = Taint {
                                             kind: "param".to_string(),
                                             name: params.get(index).unwrap().to_string(),
@@ -261,6 +266,7 @@ impl<'a> Analyzer<'a> {
                                                 class: None,
                                             },
                                         };
+                                        self.graph.push(vertex.clone().unwrap());
                                         self.graph.push(Vertex::Param {
                                             tainting: taint.clone(),
                                             context_stack: self.context_stack.clone(),
@@ -277,13 +283,6 @@ impl<'a> Analyzer<'a> {
                                         self.graph(&mut cursor.clone(), f, &mut Some(taint));
                                         self.context_stack.pop();
 
-                                        path.push(PathNode::Resolved { name: name.clone() });
-                                        vertex = Some(Vertex::Resolved {
-                                            parent_taint: parent_taint.clone(),
-                                            name: name.to_string(),
-                                            path: path.clone(),
-                                            context_stack: self.context_stack.clone(),
-                                        });
                                     }
                                     _ => (),
                                 }
@@ -297,6 +296,8 @@ impl<'a> Analyzer<'a> {
                                 path: path.clone(),
                                 context_stack: self.context_stack.clone(),
                             });
+                        } else {
+                            break;
                         }
                     }
                 }

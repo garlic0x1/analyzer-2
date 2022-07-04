@@ -13,7 +13,7 @@ pub struct Graph {
     dag: Dag<Vertex, Arc>,
     // last node that modified a taint
     leaves: HashMap<Taint, Vec<Leaf>>,
-    params: HashMap<String, Vec<daggy::NodeIndex>>,
+    last_resolved: Option<daggy::NodeIndex>,
 }
 
 #[derive(Clone)]
@@ -119,7 +119,7 @@ impl Graph {
         Self {
             dag: Dag::new(),
             leaves: HashMap::new(),
-            params: HashMap::new(),
+            last_resolved: None,
         }
     }
 
@@ -188,16 +188,10 @@ impl Graph {
                 ..
             } => {
                 let name = tainting.clone().scope.function.unwrap();
-                if self.params.contains_key(&name) {
-                    let param = self
-                        .params
-                        .get_mut(&tainting.scope.clone().function.unwrap())
-                        .unwrap();
-                    param.push(id);
-                } else {
-                    self.params
-                        .insert(tainting.scope.clone().function.unwrap(), vec![id]);
-                }
+                self.dag.add_edge(self.last_resolved.expect("no resolved?"),
+                                    id,
+                                    Arc { context_stack: context_stack.clone(),  }
+                    );
                 if self.leaves.contains_key(&tainting) {
                     let leaf = self.leaves.get_mut(&tainting).unwrap();
                     leaf.push(Leaf {
@@ -257,6 +251,7 @@ impl Graph {
                 context_stack,
                 ..
             } => {
+                self.last_resolved = Some(id.clone());
                 // add edges
                 for leaf in self.leaves.get(&parent_taint).unwrap() {
                     _ = self.dag.add_edge(
@@ -266,18 +261,6 @@ impl Graph {
                             context_stack: context_stack.clone(),
                         },
                     );
-                }
-                let params = self.params.get(&name);
-                if let Some(params) = params {
-                    for p in params {
-                        _ = self.dag.add_edge(
-                            id,
-                            *p,
-                            Arc {
-                                context_stack: context_stack.clone(),
-                            },
-                        );
-                    }
                 }
             }
             _ => (),
