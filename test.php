@@ -1,6 +1,6 @@
 <?php
 $input = $_GET[0];
-$value = "";
+$value = $_GET;
 if (false) {
 	$value = intval($input);
 }

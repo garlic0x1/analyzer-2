@@ -239,11 +239,12 @@ impl<'a> Analyzer<'a> {
                 "function_call_expression" => {
                     let save_cursor = cursor.clone();
                     let name = file.find_name(&mut cursor.clone());
+                    let mut tainted_return = false;
                     if let Some(name) = name {
-                        let mut cont = true;
+                        let mut is_resolved = false;
                         for f in self.files {
                             if let Some(resolved) = f.resolved.get(&name) {
-                                cont = false;
+                                is_resolved = true;
                                 match resolved {
                                     Resolved::Function {
                                         name,
@@ -267,11 +268,11 @@ impl<'a> Analyzer<'a> {
                                             },
                                         };
                                         self.graph.push(vertex.clone().unwrap());
+                                        vertex = None;
                                         self.graph.push(Vertex::Param {
                                             tainting: taint.clone(),
                                             context_stack: self.context_stack.clone(),
                                         });
-                                        //println!("bbbb {:?}", cursor.node().kind());
                                         self.context_stack.push(Context {
                                             kind: save_cursor.node().kind().to_string(),
                                             name: node_to_string(
@@ -288,7 +289,7 @@ impl<'a> Analyzer<'a> {
                                 }
                             }
                         }
-                        if cont {
+                        if !is_resolved {
                             path.push(PathNode::Unresolved { name: name.clone() });
                             vertex = Some(Vertex::Unresolved {
                                 parent_taint: parent_taint.clone(),
@@ -335,7 +336,6 @@ impl<'a> Analyzer<'a> {
                     // break
                 }
                 "formal_parameters" | "simple_parameter" => {
-                    println!("breaking!");
                     return;
                 }
                 _ => (),
