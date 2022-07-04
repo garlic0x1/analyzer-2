@@ -103,7 +103,10 @@ impl<'a> File<'a> {
     }
 
     fn get_params(&self, cursor: &mut TreeCursor) -> Vec<String> {
-                        println!("getting params: {}", node_to_string(&cursor.node(), self.source_code));
+        println!(
+            "getting params: {}",
+            node_to_string(&cursor.node(), self.source_code)
+        );
         let mut params: Vec<String> = Vec::new();
         let start_node = cursor.node().id();
         let mut visited = false;
@@ -112,7 +115,10 @@ impl<'a> File<'a> {
                 if cursor.goto_next_sibling() {
                     // enter
                     if cursor.node().kind() == "simple_parameter" {
-                        println!("parameter: {}", node_to_string(&cursor.node(), self.source_code));
+                        println!(
+                            "parameter: {}",
+                            node_to_string(&cursor.node(), self.source_code)
+                        );
                         for name in self.find_name(&mut cursor.clone()) {
                             params.push(name);
                         }
@@ -128,7 +134,10 @@ impl<'a> File<'a> {
             } else if cursor.goto_first_child() {
                 // enter
                 if cursor.node().kind() == "simple_parameter" {
-                        println!("parameter: {}", node_to_string(&cursor.node(), self.source_code));
+                    println!(
+                        "parameter: {}",
+                        node_to_string(&cursor.node(), self.source_code)
+                    );
                     for name in self.find_name(&mut cursor.clone()) {
                         params.push(name);
                     }
@@ -209,7 +218,7 @@ impl<'a> File<'a> {
             } else if cursor.goto_first_child() {
                 if cursor.node().kind() == "name" {
                     let s: String = node_to_string(&cursor.node(), self.source_code);
-                        return Some(s);
+                    return Some(s);
                 }
             } else {
                 visited = true;

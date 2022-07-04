@@ -205,12 +205,14 @@ impl<'a> Analyzer<'a> {
     }
 
     fn find_index(&mut self, cursor: &mut TreeCursor) -> usize {
-        let arg_id = cursor.field_id();
+        let arg_id = cursor.node().id();
         let mut index = 0;
         cursor.goto_parent();
         cursor.goto_first_child();
-        while cursor.field_id() != arg_id {
-            index += 1;
+        while cursor.node().id() != arg_id {
+            if cursor.node().is_named() {
+                index += 1;
+            }
             cursor.goto_next_sibling();
         }
 
@@ -228,6 +230,7 @@ impl<'a> Analyzer<'a> {
             match cursor.node().kind() {
                 "argument" => {
                     index = self.find_index(&mut cursor.clone());
+                    println!("index: {}", index);
                 }
                 "function_call_expression" => {
                     let save_cursor = cursor.clone();
