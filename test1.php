@@ -3,7 +3,7 @@
 function test($p1, $p2) {
 	query($p1);
 	$local_var = $p2;
-	return $local_var;
+	return $_GET;
 }
 
 ?>

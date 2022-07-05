@@ -3,7 +3,7 @@ use daggy::Dag;
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Leaf {
     node: daggy::NodeIndex,
     context_stack: Vec<Context>,
@@ -45,6 +45,12 @@ pub enum Vertex {
         path: Vec<PathNode>,
         context_stack: Vec<Context>,
     },
+    Return {
+        parent_taint: Taint,
+        tainting: Taint,
+        path: Vec<PathNode>,
+        context_stack: Vec<Context>,
+    },
 }
 
 impl fmt::Debug for Vertex {
@@ -82,6 +88,13 @@ impl fmt::Debug for Vertex {
             Self::Unresolved {
                 parent_taint, path, ..
             } => {
+                for n in path.iter().rev() {
+                    s.push_str(format!("{:?} <- ", n).as_str());
+                }
+                s.push_str(format!("{}", parent_taint.name).as_str());
+            }
+            Self::Return { parent_taint, tainting, path, context_stack } => {
+                s.push_str(format!("Return ").as_str());
                 for n in path.iter().rev() {
                     s.push_str(format!("{:?} <- ", n).as_str());
                 }
@@ -128,6 +141,16 @@ impl Graph {
         format!("{:?}", dot)
     }
 
+    pub fn has_return(&self, taint: &Taint) -> bool {
+        self.leaves.contains_key(taint)
+    }
+
+    pub fn clear_return(&mut self, taint: &Taint) {
+        if taint.kind == "return" {
+        self.leaves.remove(taint);
+        }
+    }
+
     pub fn push(&mut self, vertex: Vertex) {
         let id = self.dag.add_node(vertex.clone());
 
@@ -140,6 +163,7 @@ impl Graph {
             } => {
                 // add edges
                 for leaf in self.leaves.get(&parent_taint).unwrap() {
+                    println!("{:?}", leaf.clone());
                     _ = self.dag.add_edge(
                         leaf.node,
                         id,
@@ -260,6 +284,36 @@ impl Graph {
                         Arc {
                             context_stack: context_stack.clone(),
                         },
+                    );
+                }
+            }
+            Vertex::Return { parent_taint, tainting, path, context_stack } => {
+                println!("pushing Return vertex to graph {:?}", tainting.clone());
+                // add edges
+                for leaf in self.leaves.get(&parent_taint).unwrap() {
+                    _ = self.dag.add_edge(
+                        leaf.node,
+                        id,
+                        Arc {
+                            context_stack: context_stack.clone(),
+                        },
+                    );
+                }
+
+                if self.leaves.contains_key(&tainting) {
+                    let leaf = self.leaves.get_mut(&tainting).unwrap();
+                    leaf.push(Leaf {
+                        node: id,
+                        context_stack: context_stack,
+                    });
+                } else {
+                    
+                    self.leaves.insert(
+                        tainting,
+                        vec![Leaf {
+                            node: id,
+                            context_stack: context_stack,
+                        }],
                     );
                 }
             }
