@@ -9,4 +9,5 @@ $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
 
 $newval = test($input, $filtered);
+query(test($input, $a));
 ?>
