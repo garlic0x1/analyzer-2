@@ -242,7 +242,6 @@ impl<'a> Analyzer<'a> {
                 "function_call_expression" => {
                     let save_cursor = cursor.clone();
                     let name = file.find_name(&mut cursor.clone());
-                    let mut tainted_return = false;
                     if let Some(name) = name {
                         let mut is_resolved = false;
                         for f in self.files {

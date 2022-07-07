@@ -1,9 +1,11 @@
 use crate::analyzer::*;
+use crate::cursor::*;
 use crate::resolver::*;
 use std::fs;
 use tree_sitter::*;
 
 pub mod analyzer;
+pub mod cursor;
 pub mod graph;
 pub mod resolver;
 pub mod rules;
@@ -21,13 +23,17 @@ fn main() {
     let file1 = File::new("test1.php".to_string(), &tree1, &source_code1);
     let file = File::new("test.php".to_string(), &tree, &source_code);
 
+    let mut curs = Cursor::new(tree.walk(), &file);
+    curs.goto_child(4);
+    println!("functional kind {:?}", curs.to_string());
+
     let mut files = Vec::new();
-    files.push(file);
+    files.push(file.clone());
     files.push(file1);
 
     println!("done building files");
-    let mut analyzer = Analyzer::new(&files, ruleset);
-    println!("{}", analyzer.graph.dump());
+    //let mut analyzer = Analyzer::new(&files, ruleset);
+    //println!("{}", analyzer.graph.dump());
 }
 
 fn node_to_string(node: &Node, source: &str) -> String {

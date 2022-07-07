@@ -8,6 +8,6 @@ query($value);
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
 
-$newval = test($input, $filtered);
 query(test($input, $a));
+$newval = test($input, $filtered);
 ?>
