@@ -25,7 +25,7 @@ fn main() {
 
     let mut curs = Cursor::new(tree.walk(), &file);
     curs.goto_child(4);
-    println!("functional kind {:?}", curs.to_string());
+    println!("functional kind {:?}", curs.to_smallest_string());
 
     let mut files = Vec::new();
     files.push(file.clone());

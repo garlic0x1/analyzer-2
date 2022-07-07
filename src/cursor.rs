@@ -1,4 +1,3 @@
-use crate::node_to_string;
 use crate::resolver::File;
 use tree_sitter::*;
 
@@ -113,6 +112,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    /// get which child index we are in
     pub fn get_index(&self) -> usize {
         let node_id = self.cursor.node().id();
         let mut index = 0;
@@ -129,9 +129,22 @@ impl<'a> Cursor<'a> {
         index
     }
 
+    /// get the source code of the current node
     pub fn to_string(&self) -> String {
         let node = self.cursor.node();
         let slice = &self.file.source_code[node.byte_range()];
         slice.to_string()
+    }
+
+    /// get the smallest named node within the current node
+    pub fn to_smallest_string(&self) -> Option<String> {
+        let node = self.cursor.node();
+        let node = node.named_descendant_for_byte_range(node.start_byte(), node.start_byte());
+
+        if let Some(n) = node {
+            let slice = &self.file.source_code[n.byte_range()];
+            return Some(slice.to_string());
+        }
+        None
     }
 }
