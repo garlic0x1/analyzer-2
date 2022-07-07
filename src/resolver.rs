@@ -35,6 +35,7 @@ pub struct File<'a> {
     pub tree: &'a Tree,
     pub resolved: HashMap<String, Resolved<'a>>,
 }
+
 impl<'a> fmt::Debug for File<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Resolved").field("filename", &self).finish()

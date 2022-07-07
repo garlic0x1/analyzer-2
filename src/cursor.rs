@@ -1,4 +1,5 @@
-use crate::resolver::File;
+//use crate::resolver::File;
+use crate::file::*;
 use tree_sitter::*;
 
 #[derive(Clone)]
@@ -62,6 +63,13 @@ impl<'a> Cursor<'a> {
         return Some(name);
     }
 
+    /// traces up the tree calling closure
+    pub fn trace(&mut self, closure: &mut dyn FnMut(&Self) -> bool) {
+        while self.cursor.goto_parent() {
+            closure(&self);
+        }
+    }
+
     /// accepts a mutable closure to execute on node entry
     pub fn traverse(
         &mut self,
@@ -87,6 +95,9 @@ impl<'a> Cursor<'a> {
                     }
                     visited = false;
                 } else if self.cursor.goto_parent() {
+                    if self.cursor.node().is_named() {
+                        leave_node(&self);
+                    }
                     if self.cursor.node().id() == start_node {
                         break;
                     }
@@ -117,7 +128,12 @@ impl<'a> Cursor<'a> {
         let node_id = self.cursor.node().id();
         let mut index = 0;
         let mut cursor = self.cursor.clone();
-        cursor.goto_parent();
+
+        // handle cases where we are checking root node
+        if !cursor.goto_parent() {
+            return 0;
+        }
+
         cursor.goto_first_child();
         while cursor.node().id() != node_id {
             if cursor.node().is_named() {
@@ -132,7 +148,7 @@ impl<'a> Cursor<'a> {
     /// get the source code of the current node
     pub fn to_string(&self) -> String {
         let node = self.cursor.node();
-        let slice = &self.file.source_code[node.byte_range()];
+        let slice = &self.file.get_source()[node.byte_range()];
         slice.to_string()
     }
 
@@ -142,7 +158,7 @@ impl<'a> Cursor<'a> {
         let node = node.named_descendant_for_byte_range(node.start_byte(), node.start_byte());
 
         if let Some(n) = node {
-            let slice = &self.file.source_code[n.byte_range()];
+            let slice = &self.file.get_source()[n.byte_range()];
             return Some(slice.to_string());
         }
         None

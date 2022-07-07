@@ -6,6 +6,7 @@ use tree_sitter::*;
 
 pub mod analyzer;
 pub mod cursor;
+pub mod file;
 pub mod graph;
 pub mod resolver;
 pub mod rules;
