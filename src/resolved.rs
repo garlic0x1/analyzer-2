@@ -22,7 +22,7 @@ impl<'a> Resolved<'a> {
                         if let Some(n) = cur.name() {
                             v.push(n);
                         }
-                        return false;
+                        return true;
                     }
                     true
                 };

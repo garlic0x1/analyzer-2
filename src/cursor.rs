@@ -129,6 +129,7 @@ impl<'a> Cursor<'a> {
                 if self.cursor.goto_next_sibling() {
                     if self.cursor.node().is_named() {
                         if enter_node(self.clone()) {
+                            visited = false;
                             continue;
                         }
                         if self.cursor.goto_next_sibling() {
