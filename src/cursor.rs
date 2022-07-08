@@ -40,7 +40,6 @@ impl<'a> Cursor<'a> {
                 return false;
             }
             i += 1;
-            println!("{}", i);
         }
         true
     }
@@ -80,6 +79,7 @@ impl<'a> Cursor<'a> {
             match cur.kind() {
                 "function_definition" => {
                     if let Some(name) = cur.name() {
+                        println!("{}", name);
                         // add a resolved function
                         list.insert(name.clone(), Resolved::new_function(name, cur));
                     }
@@ -133,10 +133,8 @@ impl<'a> Cursor<'a> {
                             continue;
                         }
                         if self.cursor.goto_next_sibling() {
-                            visited = false;
                             continue;
                         } else if self.cursor.goto_parent() {
-                            visited = true;
                             continue;
                         }
                     }
