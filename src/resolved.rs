@@ -17,7 +17,7 @@ impl<'a> Resolved<'a> {
         match self {
             Resolved::Function { name, cursor } => {
                 // create mutable closure
-                let mut enter_node = |cur: &Cursor| -> bool {
+                let mut enter_node = |cur: Cursor| -> bool {
                     if cur.kind() == "simple_parameter" {
                         if let Some(n) = cur.name() {
                             v.push(n);

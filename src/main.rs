@@ -35,8 +35,7 @@ fn main() {
         .set_language(tree_sitter_php::language())
         .expect("Error loading PHP parsing support");
     let tree: Tree = parser.parse(&source_code, None).unwrap();
-    let mut file = File::new("test.php".to_string(), &tree, &source_code);
-    file.resolve();
+    let file = File::new("test.php".to_string(), &tree, &source_code);
 
     let mut curs = Cursor::new(tree.walk(), &file);
     curs.goto_child(4);

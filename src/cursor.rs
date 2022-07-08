@@ -1,5 +1,6 @@
 //use crate::resolver::File;
 use crate::file::*;
+use std::collections::HashMap;
 use tree_sitter::*;
 
 #[derive(Clone)]
@@ -15,6 +16,10 @@ impl<'a> Cursor<'a> {
 
     pub fn kind(&self) -> &str {
         self.cursor.node().kind()
+    }
+
+    pub fn raw_cursor(&self) -> TreeCursor<'a> {
+        self.cursor.clone()
     }
 
     pub fn goto_parent(&mut self) -> bool {
@@ -48,7 +53,7 @@ impl<'a> Cursor<'a> {
         let mut name = String::new();
 
         // create a mutable closure, and capture the string to mutate
-        let mut enter_node = |cur: &Self| -> bool {
+        let mut enter_node = |cur: Self| -> bool {
             if cur.cursor.node().kind() == "name" {
                 name = cur.to_string();
                 // return false to stop crawling
@@ -66,6 +71,40 @@ impl<'a> Cursor<'a> {
         Some(name)
     }
 
+    pub fn resolve(&mut self) {
+        let mut list: HashMap<String, TreeCursor> = HashMap::new();
+
+        // create a closure to give the traverser
+        let mut enter_node = |cur: Self| -> bool {
+            match cur.kind() {
+                "function_definition" => {
+                    if let Some(name) = cur.name() {
+                        // add a resolved function
+                        list.insert(name.clone(), cur.raw_cursor());
+                    }
+                }
+                "method_definition" => {
+                    if let Some(name) = cur.name() {
+                        // add a resolved function
+                    }
+                }
+                "class_definition" => {
+                    if let Some(name) = cur.name() {
+                        // add a resolved function
+                    }
+                }
+                "property_name" => {
+                    if let Some(name) = cur.name() {
+                        // add a resolved function
+                    }
+                }
+                _ => (),
+            }
+            true
+        };
+
+        self.traverse(&mut enter_node, &mut |_| ());
+    }
     /// traces up the tree calling closure
     pub fn trace(&mut self, closure: &mut dyn FnMut(&Self) -> bool) {
         while self.cursor.goto_parent() {
@@ -76,8 +115,8 @@ impl<'a> Cursor<'a> {
     /// accepts a mutable closure to execute on node entry
     pub fn traverse(
         &mut self,
-        enter_node: &mut dyn FnMut(&Self) -> bool,
-        leave_node: &mut dyn FnMut(&Self),
+        enter_node: &mut dyn FnMut(Self) -> bool,
+        leave_node: &mut dyn FnMut(Self),
     ) {
         let start_node = self.cursor.node().id();
         let mut visited = false;
@@ -85,7 +124,7 @@ impl<'a> Cursor<'a> {
             if visited {
                 if self.cursor.goto_next_sibling() {
                     if self.cursor.node().is_named() {
-                        if enter_node(&self) {
+                        if enter_node(self.clone()) {
                             continue;
                         }
                         if self.cursor.goto_next_sibling() {
@@ -99,7 +138,7 @@ impl<'a> Cursor<'a> {
                     visited = false;
                 } else if self.cursor.goto_parent() {
                     if self.cursor.node().is_named() {
-                        leave_node(&self);
+                        leave_node(self.clone());
                     }
                     if self.cursor.node().id() == start_node {
                         break;
@@ -109,7 +148,7 @@ impl<'a> Cursor<'a> {
                 }
             } else if self.cursor.goto_first_child() {
                 if self.cursor.node().is_named() {
-                    if enter_node(&self) {
+                    if enter_node(self.clone()) {
                         continue;
                     }
                     if self.cursor.goto_next_sibling() {
