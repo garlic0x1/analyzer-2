@@ -38,6 +38,7 @@ fn main() {
     let file = File::new("test.php".to_string(), &tree, &source_code);
 
     let mut curs = Cursor::new(tree.walk(), &file);
+    println!("len: {:?}", curs.resolve().len());
     curs.goto_child(4);
     println!("functional kind {:?}", curs.to_smallest_string());
 

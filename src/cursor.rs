@@ -1,5 +1,5 @@
-//use crate::resolver::File;
 use crate::file::*;
+use crate::resolved::*;
 use std::collections::HashMap;
 use tree_sitter::*;
 
@@ -71,8 +71,9 @@ impl<'a> Cursor<'a> {
         Some(name)
     }
 
-    pub fn resolve(&mut self) {
-        let mut list: HashMap<String, TreeCursor> = HashMap::new();
+    /// resolve all namespaces underneath the cursor
+    pub fn resolve(&self) -> HashMap<String, Resolved> {
+        let mut list: HashMap<String, Resolved> = HashMap::new();
 
         // create a closure to give the traverser
         let mut enter_node = |cur: Self| -> bool {
@@ -80,7 +81,7 @@ impl<'a> Cursor<'a> {
                 "function_definition" => {
                     if let Some(name) = cur.name() {
                         // add a resolved function
-                        list.insert(name.clone(), cur.raw_cursor());
+                        list.insert(name.clone(), Resolved::new_function(name, cur));
                     }
                 }
                 "method_definition" => {
@@ -103,7 +104,10 @@ impl<'a> Cursor<'a> {
             true
         };
 
-        self.traverse(&mut enter_node, &mut |_| ());
+        let mut cur = self.clone();
+        cur.traverse(&mut enter_node, &mut |_| ());
+
+        list
     }
     /// traces up the tree calling closure
     pub fn trace(&mut self, closure: &mut dyn FnMut(&Self) -> bool) {

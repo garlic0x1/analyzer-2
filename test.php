@@ -7,7 +7,13 @@ if (false) {
 query($value);
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
+function test($p1, $p2) {
+	
+}
 
+function test2($p1, $p2) {
+	
+}
 query(test($input, $a));
 $newval = test($input, $filtered);
 ?>
