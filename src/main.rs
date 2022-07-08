@@ -1,6 +1,8 @@
 use crate::analyzer::*;
 use crate::cursor::*;
-use crate::resolver::*;
+//use crate::resolver::*;
+use crate::file::*;
+use crate::resolved::*;
 use std::fs;
 use tree_sitter::*;
 
@@ -8,10 +10,12 @@ pub mod analyzer;
 pub mod cursor;
 pub mod file;
 pub mod graph;
+pub mod resolved;
 pub mod resolver;
 pub mod rules;
 
 fn main() {
+    /*
     let ruleset = rules::Rules::new("");
     let source_code = fs::read_to_string("test.php").expect("failed to read file");
     let source_code1 = fs::read_to_string("test1.php").expect("failed to read file");
@@ -23,11 +27,22 @@ fn main() {
     let tree1: Tree = parser.parse(&source_code1, None).unwrap();
     let file1 = File::new("test1.php".to_string(), &tree1, &source_code1);
     let file = File::new("test.php".to_string(), &tree, &source_code);
+    */
+    let source_code = fs::read_to_string("test.php").expect("failed to read file");
+
+    let mut parser = Parser::new();
+    parser
+        .set_language(tree_sitter_php::language())
+        .expect("Error loading PHP parsing support");
+    let tree: Tree = parser.parse(&source_code, None).unwrap();
+    let mut file = File::new("test.php".to_string(), &tree, &source_code);
+    file.resolve();
 
     let mut curs = Cursor::new(tree.walk(), &file);
     curs.goto_child(4);
     println!("functional kind {:?}", curs.to_smallest_string());
 
+    /*
     let mut files = Vec::new();
     files.push(file.clone());
     files.push(file1);
@@ -35,6 +50,7 @@ fn main() {
     println!("done building files");
     //let mut analyzer = Analyzer::new(&files, ruleset);
     //println!("{}", analyzer.graph.dump());
+    */
 }
 
 fn node_to_string(node: &Node, source: &str) -> String {

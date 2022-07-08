@@ -120,7 +120,12 @@ impl<'a> Analyzer<'a> {
     }
 
     // call with a cloned TreeCursor to not lose our place in the traversal
-    fn enter_node(&mut self, cursor: &mut TreeCursor, file: &'a File<'a>, local_taint: &Option<Taint>) -> bool {
+    fn enter_node(
+        &mut self,
+        cursor: &mut TreeCursor,
+        file: &'a File<'a>,
+        local_taint: &Option<Taint>,
+    ) -> bool {
         let node = cursor.node();
         match node.kind() {
             "function_definition" | "method_declaration" | "class_declaration" => return false,
@@ -285,7 +290,6 @@ impl<'a> Analyzer<'a> {
                                         self.graphed_blocks.insert(name.to_string());
                                         self.graph(&mut cursor.clone(), f, &mut Some(taint));
                                         self.context_stack.pop();
-
                                     }
                                     _ => (),
                                 }
@@ -302,17 +306,25 @@ impl<'a> Analyzer<'a> {
                             });
                         } else {
                             if !self.graph.has_return(&Taint {
-                                    kind: "return".to_string(),
-                                    name: name.clone(),
-                                    scope: Scope { filename: None, function: None, class: None },
-                                }) {
+                                kind: "return".to_string(),
+                                name: name.clone(),
+                                scope: Scope {
+                                    filename: None,
+                                    function: None,
+                                    class: None,
+                                },
+                            }) {
                                 println!("no return");
                                 break;
                             } else {
                                 parent_taint = Taint {
                                     kind: "return".to_string(),
                                     name: name.clone(),
-                                    scope: Scope { filename: None, function: None, class: None },
+                                    scope: Scope {
+                                        filename: None,
+                                        function: None,
+                                        class: None,
+                                    },
                                 };
                             }
                         }
@@ -354,7 +366,11 @@ impl<'a> Analyzer<'a> {
                         child_taint = Some(Taint {
                             kind: "return".to_string(),
                             name: name.clone(),
-                            scope: Scope { filename: None, function: None, class: None},
+                            scope: Scope {
+                                filename: None,
+                                function: None,
+                                class: None,
+                            },
                         });
                         vertex = Some(Vertex::Return {
                             parent_taint: parent_taint.clone(),

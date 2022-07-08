@@ -44,7 +44,7 @@ impl<'a> Cursor<'a> {
         self.cursor.goto_next_sibling()
     }
 
-    pub fn name(&mut self) -> Option<String> {
+    pub fn name(&self) -> Option<String> {
         let mut name = String::new();
 
         // create a mutable closure, and capture the string to mutate
@@ -59,8 +59,11 @@ impl<'a> Cursor<'a> {
             }
         };
 
-        self.traverse(&mut enter_node, &mut |_| ());
-        return Some(name);
+        // traverse a clone for self immutability
+        let mut cur = self.clone();
+        cur.traverse(&mut enter_node, &mut |_| ());
+
+        Some(name)
     }
 
     /// traces up the tree calling closure
