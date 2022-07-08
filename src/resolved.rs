@@ -2,11 +2,16 @@ use crate::cursor::*;
 
 pub enum Resolved<'a> {
     Function { name: String, cursor: Cursor<'a> },
+    Root { cursor: Cursor<'a> },
 }
 
 impl<'a> Resolved<'a> {
     pub fn new_function(name: String, cursor: Cursor<'a>) -> Self {
         Self::Function { name, cursor }
+    }
+
+    pub fn new_root(cursor: Cursor<'a>) -> Self {
+        Self::Root { cursor }
     }
 
     /// returns vec of resolved parameter names

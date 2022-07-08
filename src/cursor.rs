@@ -74,12 +74,15 @@ impl<'a> Cursor<'a> {
     pub fn resolve(&self) -> HashMap<String, Resolved> {
         let mut list: HashMap<String, Resolved> = HashMap::new();
 
+        if !self.cursor.clone().goto_parent() {
+            list.insert("ROOT".to_string(), Resolved::new_root(self.clone()));
+        }
+
         // create a closure to give the traverser
         let mut enter_node = |cur: Self| -> bool {
             match cur.kind() {
                 "function_definition" => {
                     if let Some(name) = cur.name() {
-                        println!("{}", name);
                         // add a resolved function
                         list.insert(name.clone(), Resolved::new_function(name, cur));
                     }
