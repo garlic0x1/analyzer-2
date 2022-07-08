@@ -1,5 +1,5 @@
-use crate::file::*;
-use crate::resolved::*;
+use super::file::*;
+use super::resolved::*;
 use std::collections::HashMap;
 use tree_sitter::*;
 

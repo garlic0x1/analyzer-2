@@ -1,7 +1,7 @@
 use crate::graph::*;
-use crate::node_to_string;
-use crate::resolver::*;
-use crate::rules;
+use crate::tree::cursor::*;
+use crate::tree::file::*;
+use crate::tree::resolved::*;
 use std::collections::HashSet;
 use tree_sitter::*;
 

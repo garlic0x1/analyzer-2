@@ -1,11 +1,11 @@
-use crate::cursor::*;
-use crate::file::*;
 use std::fs;
+use tree::cursor::*;
+use tree::file::*;
+use tree::resolved::*;
 use tree_sitter::*;
 
-pub mod cursor;
-pub mod file;
-pub mod resolved;
+//pub mod analyzer;
+pub mod tree;
 
 fn main() {
     let source_code = fs::read_to_string("test.php").expect("failed to read file");

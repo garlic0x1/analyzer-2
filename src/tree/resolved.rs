@@ -1,4 +1,4 @@
-use crate::cursor::*;
+use super::cursor::*;
 
 pub enum Resolved<'a> {
     Function { name: String, cursor: Cursor<'a> },
