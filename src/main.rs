@@ -1,3 +1,5 @@
+use analyzer::analyzer::*;
+use analyzer::taint::*;
 use std::fs;
 use tree::cursor::*;
 use tree::file::*;
@@ -5,6 +7,7 @@ use tree::resolved::*;
 use tree_sitter::*;
 
 //pub mod analyzer;
+pub mod analyzer;
 pub mod tree;
 
 fn main() {

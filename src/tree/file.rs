@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use tree_sitter::*;
 
 pub struct File<'a> {
@@ -18,5 +17,9 @@ impl<'a> File<'a> {
 
     pub fn get_source(&self) -> &'a str {
         self.source
+    }
+
+    pub fn get_cursor(&self) -> TreeCursor<'a> {
+        self.tree.walk()
     }
 }

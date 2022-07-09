@@ -14,6 +14,13 @@ impl<'a> Cursor<'a> {
         Self { cursor, file }
     }
 
+    pub fn from_file(file: &'a File<'a>) -> Self {
+        Self {
+            cursor: file.get_cursor(),
+            file,
+        }
+    }
+
     pub fn kind(&self) -> &str {
         self.cursor.node().kind()
     }
@@ -75,7 +82,7 @@ impl<'a> Cursor<'a> {
         let mut list: HashMap<String, Resolved> = HashMap::new();
 
         if !self.cursor.clone().goto_parent() {
-            list.insert("ROOT".to_string(), Resolved::new_root(self.clone()));
+            list.insert("ROOT".to_owned(), Resolved::new_root(self.clone()));
         }
 
         // create a closure to give the traverser
@@ -84,7 +91,7 @@ impl<'a> Cursor<'a> {
                 "function_definition" => {
                     if let Some(name) = cur.name() {
                         // add a resolved function
-                        list.insert(name.clone(), Resolved::new_function(name, cur));
+                        list.insert(name, Resolved::new_function(cur));
                     }
                 }
                 "method_definition" => {
@@ -113,9 +120,9 @@ impl<'a> Cursor<'a> {
         list
     }
     /// traces up the tree calling closure
-    pub fn trace(&mut self, closure: &mut dyn FnMut(&Self) -> bool) {
+    pub fn trace(&mut self, closure: &mut dyn FnMut(Self) -> bool) {
         while self.cursor.goto_parent() {
-            closure(&self);
+            closure(self.clone());
         }
     }
 
@@ -198,6 +205,13 @@ impl<'a> Cursor<'a> {
         let node = self.cursor.node();
         let slice = &self.file.get_source()[node.byte_range()];
         slice.to_string()
+    }
+
+    /// get the source code of the current node
+    pub fn to_str(&self) -> &str {
+        let node = self.cursor.node();
+        let slice = &self.file.get_source()[node.byte_range()];
+        slice
     }
 
     /// get the smallest named node within the current node
