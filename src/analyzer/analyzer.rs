@@ -19,6 +19,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
+    /// traverse the program, looking for taints to trace, and following program flow
     pub fn traverse(&mut self, cursor: &mut Cursor) {
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {
@@ -32,5 +33,17 @@ impl<'a> Analyzer<'a> {
         };
 
         cursor.traverse(&mut closure, &mut |_| ());
+    }
+
+    pub fn trace(&mut self, cursor: Cursor) {
+        let mut closure = |cur: Cursor| -> bool {
+            match cur.kind() {
+                "assignment_expression" => false,
+                "function_call_expression" => true,
+                _ => true,
+            }
+        };
+        let mut cursor = cursor;
+        cursor.trace(&mut closure);
     }
 }
