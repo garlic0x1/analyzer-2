@@ -3,7 +3,7 @@ use crate::tree::file::*;
 use crate::tree::resolved::*;
 use tree_sitter::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Taint {
     pub kind: String,
     pub name: String,
@@ -20,7 +20,41 @@ impl Taint {
     }
 }
 
-#[derive(Clone, Debug)]
+// may need to change this to a hashmap for faster lookup times
+pub struct TaintList {
+    vec: Vec<Taint>,
+}
+
+impl TaintList {
+    pub fn new() -> Self {
+        Self { vec: Vec::new() }
+    }
+
+    pub fn push(&mut self, taint: Taint) {
+        self.vec.push(taint);
+    }
+
+    pub fn remove(&mut self, taint: &Taint) {
+        let mut newvec = Vec::new();
+        for t in self.vec.iter() {
+            if t != taint {
+                newvec.push(t.clone());
+            }
+        }
+        self.vec = newvec;
+    }
+
+    pub fn contains(&self, taint: &Taint) -> bool {
+        for t in self.vec.iter() {
+            if t == taint {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Scope {
     pub filename: Option<String>,
     pub function: Option<String>,
@@ -58,8 +92,14 @@ impl Scope {
 
 #[derive(Clone, Debug)]
 pub struct Context {
-    kind: String,
-    name: String,
+    pub kind: String,
+    pub name: String,
+}
+
+impl Context {
+    pub fn new(kind: String, name: String) -> Self {
+        Self { kind, name }
+    }
 }
 
 #[derive(Clone, Debug)]

@@ -35,7 +35,7 @@ impl<'a> Analyzer<'a> {
         cursor.traverse(&mut closure, &mut |_| ());
     }
 
-    pub fn trace(&mut self, cursor: Cursor) {
+    fn trace(&mut self, cursor: Cursor) {
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {
                 "assignment_expression" => false,
