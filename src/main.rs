@@ -1,5 +1,7 @@
 use analyzer::analyzer::*;
 use analyzer::taint::*;
+//use graph::graph::*;
+//use graph::rules::*;
 use std::fs;
 use tree::cursor::*;
 use tree::file::*;
@@ -8,6 +10,7 @@ use tree_sitter::*;
 
 //pub mod analyzer;
 pub mod analyzer;
+//pub mod graph;
 pub mod tree;
 
 fn main() {

@@ -5,7 +5,7 @@ use crate::tree::resolved::*;
 use tree_sitter::*;
 
 pub struct Analyzer<'a> {
-    taints: Vec<Taint<'a>>,
+    taints: Vec<Taint>,
     context_stack: Vec<Context>,
     files: &'a Vec<File<'a>>,
 }

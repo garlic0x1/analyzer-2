@@ -1,4 +1,4 @@
-use super::*;
+use crate::analyzer::taint::*;
 use daggy::Dag;
 use std::collections::HashMap;
 use std::fmt;
@@ -93,7 +93,12 @@ impl fmt::Debug for Vertex {
                 }
                 s.push_str(format!("{}", parent_taint.name).as_str());
             }
-            Self::Return { parent_taint, tainting, path, context_stack } => {
+            Self::Return {
+                parent_taint,
+                tainting,
+                path,
+                context_stack,
+            } => {
                 s.push_str(format!("Return ").as_str());
                 for n in path.iter().rev() {
                     s.push_str(format!("{:?} <- ", n).as_str());
@@ -147,7 +152,7 @@ impl Graph {
 
     pub fn clear_return(&mut self, taint: &Taint) {
         if taint.kind == "return" {
-        self.leaves.remove(taint);
+            self.leaves.remove(taint);
         }
     }
 
@@ -212,10 +217,13 @@ impl Graph {
                 ..
             } => {
                 let name = tainting.clone().scope.function.unwrap();
-                self.dag.add_edge(self.last_resolved.expect("no resolved?"),
-                                    id,
-                                    Arc { context_stack: context_stack.clone(),  }
-                    );
+                self.dag.add_edge(
+                    self.last_resolved.expect("no resolved?"),
+                    id,
+                    Arc {
+                        context_stack: context_stack.clone(),
+                    },
+                );
                 if self.leaves.contains_key(&tainting) {
                     let leaf = self.leaves.get_mut(&tainting).unwrap();
                     leaf.push(Leaf {
@@ -287,7 +295,12 @@ impl Graph {
                     );
                 }
             }
-            Vertex::Return { parent_taint, tainting, path, context_stack } => {
+            Vertex::Return {
+                parent_taint,
+                tainting,
+                path,
+                context_stack,
+            } => {
                 println!("pushing Return vertex to graph {:?}", tainting.clone());
                 // add edges
                 for leaf in self.leaves.get(&parent_taint).unwrap() {
@@ -307,7 +320,6 @@ impl Graph {
                         context_stack: context_stack,
                     });
                 } else {
-                    
                     self.leaves.insert(
                         tainting,
                         vec![Leaf {
