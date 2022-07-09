@@ -20,7 +20,7 @@ fn main() {
     parser
         .set_language(tree_sitter_php::language())
         .expect("Error loading PHP parsing support");
-    let tree: Tree = parser.parse(&source_code, None).unwrap();
+    let tree = parser.parse(&source_code, None).unwrap();
     let file = File::new("test.php".to_string(), &tree, &source_code);
 
     let curs = Cursor::new(tree.walk(), &file);
