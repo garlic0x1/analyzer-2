@@ -2,7 +2,6 @@ use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
 use crate::tree::resolved::*;
-use tree_sitter::*;
 
 pub struct Analyzer<'a> {
     taints: TaintList,
@@ -48,20 +47,20 @@ impl<'a> Analyzer<'a> {
     fn trace(&mut self, cursor: Cursor) {
         let mut path = Vec::new();
         let mut closure = |cur: Cursor| -> bool {
-            path.push(cur.name());
             match cur.kind() {
-                "assignment_expression" => false,
+                "expression_statement" => false,
                 "function_call_expression" => {
+                    //path.push(cur.name());
+                    //println!("{:?}", cur.name());
                     path.push(cur.name());
-                    println!("{:?}", cur.name());
                     true
                 }
                 _ => true,
             }
         };
         let mut cursor = cursor;
-        cursor.trace(&mut closure);
         println!("{}, {:?}", cursor.kind(), cursor.name());
+        cursor.trace(&mut closure);
         println!("{:?}", path);
     }
 }

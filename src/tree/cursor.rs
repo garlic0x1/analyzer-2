@@ -128,8 +128,10 @@ impl<'a> Cursor<'a> {
     /// traces up the tree calling closure
     pub fn trace(&mut self, closure: &mut dyn FnMut(Self) -> bool) {
         while self.goto_parent() {
-            if !closure(self.clone()) {
-                break;
+            if self.cursor.node().is_named() {
+                if !closure(self.clone()) {
+                    break;
+                }
             }
         }
     }
