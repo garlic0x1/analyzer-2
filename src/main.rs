@@ -5,6 +5,7 @@ use tree_sitter::*;
 use utils::dumper::*;
 
 pub mod analyzer;
+pub mod graph;
 pub mod tree;
 pub mod utils;
 

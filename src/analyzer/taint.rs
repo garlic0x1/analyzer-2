@@ -1,6 +1,6 @@
 use crate::tree::cursor::*;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Taint {
     pub kind: String,
     pub name: String,
@@ -67,7 +67,7 @@ impl TaintList {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Scope {
     pub filename: Option<String>,
     pub function: Option<String>,
@@ -103,7 +103,7 @@ impl Scope {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Context {
     pub kind: String,
     pub name: String,
@@ -115,7 +115,7 @@ impl Context {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct ContextStack {
     stack: Vec<Context>,
 }
