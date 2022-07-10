@@ -58,31 +58,46 @@ impl<'a> Analyzer<'a> {
     /// Optionally returns a taint with the function
     fn traverse(&mut self, cursor: Cursor<'a>) -> bool {
         let mut returns = false;
-        let mut closure = |cur: Cursor<'a>| -> Breaker {
-            match cur.kind() {
-                "variable_name" => {
-                    // check if in left of assignment and return
-                    if let Some(s) = cur.raw_cursor().field_name() {
-                        if s == "left" {
-                            return Breaker::Continue;
+        let mut closure = |cur: Cursor<'a>, entering: bool| -> Breaker {
+            if entering {
+                match cur.kind() {
+                    "variable_name" => {
+                        // check if in left of assignment and return
+                        if let Some(s) = cur.raw_cursor().field_name() {
+                            if s == "left" {
+                                return Breaker::Continue;
+                            }
                         }
-                    }
 
-                    // check for taint and trace
-                    if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
-                        if self.trace(cur, t.kind) {
-                            returns = true;
+                        // check for taint and trace
+                        if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
+                            if self.trace(cur, t.kind) {
+                                returns = true;
+                            }
                         }
+                        Breaker::Continue
                     }
-                    Breaker::Continue
+                    // do not crawl into these node types
+                    "function_definition" => Breaker::Pass,
+                    "if_statement" => {
+                        self.context
+                            .push(Context::new(cur.kind().to_string(), cur.kind().to_string()));
+                        Breaker::Continue
+                    }
+                    _ => Breaker::Continue,
                 }
-                // do not crawl into these node types
-                "function_definition" => Breaker::Pass,
-                _ => Breaker::Continue,
+            } else {
+                match cur.kind() {
+                    "if_statement" => {
+                        self.context.pop();
+                        Breaker::Continue
+                    }
+                    _ => Breaker::Continue,
+                }
             }
         };
         let mut cursor = cursor.clone();
-        cursor.traverse(&mut closure, &mut |_| ());
+        cursor.traverse(&mut closure);
         returns
     }
 
@@ -90,6 +105,7 @@ impl<'a> Analyzer<'a> {
     fn trace(&mut self, cursor: Cursor<'a>, kind: TaintKind) -> bool {
         let mut path = Vec::new();
         let source = Taint::new(cursor.clone(), kind);
+        let mut push_path = false;
         let mut returns = false;
         let mut index: usize = 0;
         let mut closure = |cur: Cursor<'a>| -> bool {
@@ -114,6 +130,7 @@ impl<'a> Analyzer<'a> {
                         Assign::Taint { assign },
                         path.clone(),
                     ));
+                    push_path = false;
                     false
                 }
                 "function_call_expression" => {
@@ -152,6 +169,7 @@ impl<'a> Analyzer<'a> {
                         self.context.pop();
                     } else {
                         path.push(cur);
+                        push_path = true;
                     }
                     cont
                 }
@@ -160,16 +178,18 @@ impl<'a> Analyzer<'a> {
         };
         let mut cursor = cursor;
         cursor.trace(&mut closure);
-        if let Some(cur) = path.pop() {
-            let vert = Vertex::new(
-                source,
-                self.context.clone(),
-                Assign::Unresolved {
-                    cursor: cur.clone(),
-                },
-                path,
-            );
-            self.graph.push(vert);
+        if push_path {
+            if let Some(cur) = path.pop() {
+                let vert = Vertex::new(
+                    source,
+                    self.context.clone(),
+                    Assign::Unresolved {
+                        cursor: cur.clone(),
+                    },
+                    path,
+                );
+                self.graph.push(vert);
+            }
         }
 
         returns

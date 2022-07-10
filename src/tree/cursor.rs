@@ -73,20 +73,24 @@ impl<'a> Cursor<'a> {
         let mut name = String::new();
 
         // create a mutable closure, and capture the string to mutate
-        let mut enter_node = |cur: Self| -> Breaker {
-            if cur.cursor.node().kind() == "name" {
-                // return false to stop crawling
-                name = cur.to_string();
-                Breaker::Break
+        let mut enter_node = |cur: Self, entering: bool| -> Breaker {
+            if entering {
+                if cur.cursor.node().kind() == "name" {
+                    // return false to stop crawling
+                    name = cur.to_string();
+                    Breaker::Break
+                } else {
+                    // continue crawling
+                    Breaker::Continue
+                }
             } else {
-                // continue crawling
                 Breaker::Continue
             }
         };
 
         // traverse a clone for self immutability
         let mut cur = self.clone();
-        cur.traverse(&mut enter_node, &mut |_| ());
+        cur.traverse(&mut enter_node);
 
         Some(name)
     }
@@ -100,36 +104,38 @@ impl<'a> Cursor<'a> {
         }
 
         // create a closure to give the traverser
-        let mut enter_node = |cur: Self| -> Breaker {
-            match cur.kind() {
-                "function_definition" => {
-                    if let Some(name) = cur.name() {
-                        // add a resolved function
-                        list.insert(name, Resolved::new_function(cur));
+        let mut enter_node = |cur: Self, entering: bool| -> Breaker {
+            if entering {
+                match cur.kind() {
+                    "function_definition" => {
+                        if let Some(name) = cur.name() {
+                            // add a resolved function
+                            list.insert(name, Resolved::new_function(cur));
+                        }
                     }
-                }
-                "method_definition" => {
-                    if let Some(name) = cur.name() {
-                        // add a resolved function
+                    "method_definition" => {
+                        if let Some(name) = cur.name() {
+                            // add a resolved function
+                        }
                     }
-                }
-                "class_definition" => {
-                    if let Some(name) = cur.name() {
-                        // add a resolved function
+                    "class_definition" => {
+                        if let Some(name) = cur.name() {
+                            // add a resolved function
+                        }
                     }
-                }
-                "property_name" => {
-                    if let Some(name) = cur.name() {
-                        // add a resolved function
+                    "property_name" => {
+                        if let Some(name) = cur.name() {
+                            // add a resolved function
+                        }
                     }
+                    _ => (),
                 }
-                _ => (),
             }
             Breaker::Continue
         };
 
         let mut cur = self.clone();
-        cur.traverse(&mut enter_node, &mut |_| ());
+        cur.traverse(&mut enter_node);
 
         list
     }
@@ -145,11 +151,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// accepts a mutable closure to execute on node entry
-    pub fn traverse(
-        &mut self,
-        enter_node: &mut dyn FnMut(Self) -> Breaker,
-        leave_node: &mut dyn FnMut(Self),
-    ) {
+    pub fn traverse(&mut self, handler: &mut dyn FnMut(Self, bool) -> Breaker) {
         let start_node = self.cursor.node().id();
         let mut visited = false;
         loop {
@@ -157,7 +159,7 @@ impl<'a> Cursor<'a> {
                 if self.cursor.goto_next_sibling() {
                     visited = false;
                     if self.cursor.node().is_named() {
-                        match enter_node(self.clone()) {
+                        match handler(self.clone(), true) {
                             Breaker::Continue => continue,
                             Breaker::Break => break,
                             Breaker::Pass => {
@@ -165,7 +167,7 @@ impl<'a> Cursor<'a> {
                                     continue;
                                 } else if self.cursor.goto_parent() {
                                     if self.cursor.node().is_named() {
-                                        leave_node(self.clone());
+                                        handler(self.clone(), false);
                                     }
                                     if self.cursor.node().id() == start_node {
                                         break;
@@ -178,7 +180,7 @@ impl<'a> Cursor<'a> {
                     }
                 } else if self.cursor.goto_parent() {
                     if self.cursor.node().is_named() {
-                        leave_node(self.clone());
+                        handler(self.clone(), false);
                     }
                     if self.cursor.node().id() == start_node {
                         break;
@@ -188,7 +190,7 @@ impl<'a> Cursor<'a> {
                 }
             } else if self.cursor.goto_first_child() {
                 if self.cursor.node().is_named() {
-                    match enter_node(self.clone()) {
+                    match handler(self.clone(), true) {
                         Breaker::Continue => continue,
                         Breaker::Break => break,
                         Breaker::Pass => {
@@ -196,7 +198,7 @@ impl<'a> Cursor<'a> {
                                 continue;
                             } else if self.cursor.goto_parent() {
                                 if self.cursor.node().is_named() {
-                                    leave_node(self.clone());
+                                    handler(self.clone(), false);
                                 }
                                 if self.cursor.node().id() == start_node {
                                     break;

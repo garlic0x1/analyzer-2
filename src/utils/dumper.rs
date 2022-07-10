@@ -15,15 +15,17 @@ impl<'a> Dumper<'a> {
     /// dump the tree as a string
     pub fn dump(&self) -> String {
         let mut string = String::new();
-        let mut node_handler = |cur: Cursor| -> Breaker {
-            let indent = "  ".repeat(Dumper::depth(cur.clone()));
-            string.push_str(&format!("{}Kind: {}\n", indent, cur.kind()));
-            string.push_str(&format!("{}Name: {:?}\n", indent, cur.name()));
+        let mut node_handler = |cur: Cursor, entering: bool| -> Breaker {
+            if entering {
+                let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                string.push_str(&format!("{}Kind: {}\n", indent, cur.kind()));
+                string.push_str(&format!("{}Name: {:?}\n", indent, cur.name()));
+            }
             Breaker::Continue
         };
 
         for file in self.files.iter() {
-            file.cursor().traverse(&mut node_handler, &mut |_| ());
+            file.cursor().traverse(&mut node_handler);
         }
 
         string

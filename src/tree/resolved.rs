@@ -30,16 +30,18 @@ impl<'a> Resolved<'a> {
         match self {
             Resolved::Function { cursor } => {
                 // create mutable closure
-                let mut enter_node = |cur: Cursor<'a>| -> Breaker {
-                    if cur.kind() == "simple_parameter" {
-                        v.push(cur);
+                let mut enter_node = |cur: Cursor<'a>, entering: bool| -> Breaker {
+                    if entering {
+                        if cur.kind() == "simple_parameter" {
+                            v.push(cur);
+                        }
                     }
                     Breaker::Continue
                 };
 
                 // traverse with closure
                 let mut cursor = cursor.clone();
-                cursor.traverse(&mut enter_node, &mut |_| ());
+                cursor.traverse(&mut enter_node);
 
                 v
             }
