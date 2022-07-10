@@ -8,14 +8,11 @@ query($value);
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
 function test($p1, $p2) {
-	$local_var = $_GET;	
+	$local_var = $p2;	
 	$flagFLAGflag = query($p1);
 }
 
-function test2($p1, $p2) {
-	
-}
 query($input, $a);
-$newval = test($input, $filtered);
+$newval = test(0, $filtered);
 $newval = test(0, $filtered);
 ?>

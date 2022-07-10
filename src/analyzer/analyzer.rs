@@ -28,7 +28,7 @@ impl<'a> Analyzer<'a> {
     pub fn from_sources(files: Vec<&'a File<'a>>, sources: Vec<String>) -> Self {
         let mut taints = TaintList::new();
         for source in sources {
-            taints.push(Taint::new_global(source));
+            taints.push(Taint::new_source(source));
         }
         Self {
             files,
@@ -124,12 +124,15 @@ impl<'a> Analyzer<'a> {
                             resolved.cursor().name().unwrap(),
                         ));
                         let params = resolved.parameters();
+                        println!("{:?}", params.len());
                         let param_cur = params
                             .get(index)
                             .expect("unknown index (didnt pass through argument)");
-                        let param_taint = Taint::new_variable(param_cur.clone());
+
+                        println!("{:?}", param_cur.name());
+                        let param_taint = Taint::new_param(param_cur.clone());
                         self.taints.push(param_taint.clone());
-                        path.push(cur);
+                        path.push(cur.clone());
                         self.graph.push(Vertex::new(
                             source.clone(),
                             self.context.clone(),
@@ -138,6 +141,8 @@ impl<'a> Analyzer<'a> {
                         ));
                         cont = self.traverse(resolved.cursor());
                         self.taints.remove(&param_taint);
+                        self.taints.clear_scope(&Scope::new(param_cur.clone()));
+                        self.graph.clear_scope(&Scope::new(param_cur.clone()));
                         self.context.pop();
                     } else {
                         path.push(cur);
@@ -147,54 +152,7 @@ impl<'a> Analyzer<'a> {
                 _ => true,
             }
         };
-        //     match cur.kind() {
-        //         "return_statement" => {
-        //             returns = true;
-        //             false
-        //         }
-        //         "expression_statement" => false,
-        //         // record index
-        //         "argument" => {
-        //             index = cur.get_index();
-        //             true
-        //         }
-        //         "assignment_expression" => {
-        //             let assign = Taint::new_variable(cur.clone());
-        //             self.taints.push(assign.clone());
-        //             path.push(cur.clone());
-        //             self.graph.push(Vertex::new(
-        //                 source.clone(),
-        //                 self.context.clone(),
-        //                 Some(assign),
-        //                 path.clone(),
-        //             ));
-        //             false
-        //         }
-        //         "function_call_expression" => {
-        //             let mut cont = true;
-        //             let res_list = &self.resolved;
-        //             if let Some(resolved) = &res_list.get(&cur.name().unwrap()) {
-        //                 self.context.push(Context::new(
-        //                     resolved.cursor().kind().to_string(),
-        //                     resolved.cursor().name().unwrap(),
-        //                 ));
-        //                 let params = resolved.parameters();
-        //                 let param_cur = params
-        //                     .get(index)
-        //                     .expect("unknown index (didnt pass through argument)");
-        //                 let param_taint = Taint::new_variable(param_cur.clone());
-        //                 self.taints.push(param_taint.clone());
-        //                 cont = self.traverse(resolved.cursor());
-        //                 self.taints.remove(&param_taint);
-        //                 self.context.pop();
-        //             }
-        //             path.push(cur.clone());
-        //             cont
-        //         }
-        //         _ => true,
-        //     }
         let mut cursor = cursor;
-        println!("{}, {:?}", cursor.kind(), cursor.name());
         cursor.trace(&mut closure);
         returns
     }

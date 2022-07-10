@@ -19,10 +19,11 @@ impl<'a> std::fmt::Debug for Vertex<'a> {
             s.push_str(" -> ");
             s.push_str(&item.name().unwrap());
         }
-        if let Some(t) = &self.assign {
-            s.push_str(" -> ");
-            s.push_str(&t.name);
-        }
+
+        // if let Some(t) = &self.assign {
+        //     s.push_str(" -> ");
+        //     s.push_str(&t.name);
+        // }
         write!(f, "{}", s)
     }
 }
@@ -46,7 +47,15 @@ impl<'a> Vertex<'a> {
         Self {
             source: source.clone(),
             context: ContextStack::new(),
-            assign: None,
+            assign: Some(source),
+            path: Vec::new(),
+        }
+    }
+    pub fn new_param(source: Taint, assign: Taint) -> Self {
+        Self {
+            source,
+            context: ContextStack::new(),
+            assign: Some(assign),
             path: Vec::new(),
         }
     }
@@ -72,6 +81,14 @@ impl<'a> Graph<'a> {
 
     pub fn clear_taint(&mut self, taint: &Taint) {
         self.taint_leaves.remove(taint);
+    }
+
+    pub fn clear_scope(&mut self, scope: &Scope) {
+        for (t, l) in self.taint_leaves.iter_mut() {
+            if t.scope == *scope {
+                *l = HashMap::new();
+            }
+        }
     }
 
     pub fn push(&mut self, vertex: Vertex<'a>) {
@@ -100,14 +117,18 @@ impl<'a> Graph<'a> {
     }
 
     fn connect_parents(&mut self, id: &NodeIndex, vertex: &Vertex) {
-        match vertex.source.kind.as_str() {
+        match vertex.source.kind {
             // add source
-            "global" => {
-                if !self.taint_leaves.contains_key(&vertex.source) {
-                    let new_leaf = Vertex::new_source(vertex.source.clone());
+            TaintKind::Source | TaintKind::Param => {
+                if !self
+                    .taint_leaves
+                    .contains_key(&vertex.assign.clone().unwrap())
+                {
+                    let new_leaf = Vertex::new_source(vertex.assign.clone().unwrap());
                     let leaf_id = self.dag.add_node(new_leaf);
                     let mut new_map = HashMap::new();
-                    new_map.insert(ContextStack::new(), leaf_id);
+                    new_map.insert(vertex.context.clone(), leaf_id);
+                    println!("inserted leaf");
                     self.taint_leaves.insert(vertex.source.clone(), new_map);
                 }
                 for (_, leaf) in self.taint_leaves.get(&vertex.source).unwrap().iter() {
@@ -117,7 +138,7 @@ impl<'a> Graph<'a> {
                 }
             }
             // shouldnt need to add source, so assume there are leaves but still handle errors
-            other => {
+            _ => {
                 if let Some(leaves) = self.taint_leaves.get(&vertex.source) {
                     for (_, leaf) in leaves.iter() {
                         _ = self
@@ -125,7 +146,10 @@ impl<'a> Graph<'a> {
                             .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
                     }
                 } else {
-                    println!("unexpected behavior");
+                    println!(
+                        "unexpected behavior {:?} {:?}",
+                        vertex.source, vertex.assign
+                    );
                 }
             }
         }

@@ -1,8 +1,17 @@
 use crate::tree::cursor::*;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub enum TaintKind {
+    Source,
+    Global,
+    Variable,
+    Param,
+    Return,
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Taint {
-    pub kind: String,
+    pub kind: TaintKind,
     pub name: String,
     pub scope: Scope,
 }
@@ -10,17 +19,25 @@ pub struct Taint {
 impl Taint {
     pub fn new_variable(cursor: Cursor) -> Self {
         Self {
-            kind: "variable".to_string(),
+            kind: TaintKind::Variable,
             name: cursor.name().expect("unnamed taint"),
             scope: Scope::new(cursor),
         }
     }
 
-    pub fn new_global(name: String) -> Self {
+    pub fn new_source(name: String) -> Self {
         Self {
-            kind: "global".to_string(),
+            kind: TaintKind::Source,
             name,
             scope: Scope::new_global(),
+        }
+    }
+
+    pub fn new_param(cursor: Cursor) -> Self {
+        Self {
+            kind: TaintKind::Param,
+            name: cursor.name().expect("unnamed taint"),
+            scope: Scope::new(cursor),
         }
     }
 }
@@ -55,15 +72,33 @@ impl TaintList {
     pub fn contains(&self, taint: &Taint) -> bool {
         for t in self.vec.iter() {
             // dont exhaustively match global sources
-            if t.kind == "global" {
-                if t.name == taint.name {
-                    return true;
+            match t.kind {
+                TaintKind::Global | TaintKind::Source | TaintKind::Return | TaintKind::Param => {
+                    if t.name == taint.name {
+                        return true;
+                    }
                 }
-            } else if t == taint {
-                return true;
+                TaintKind::Variable => {
+                    if t == taint {
+                        return true;
+                    }
+                }
             }
         }
         false
+    }
+
+    pub fn clear_scope(&mut self, scope: &Scope) {
+        let mut newvec = Vec::new();
+        for t in self.vec.iter() {
+            if &t.scope != scope {
+                newvec.push(t.clone());
+            } else {
+                println!("removing {:?}", t);
+            }
+        }
+
+        self.vec = newvec;
     }
 }
 
