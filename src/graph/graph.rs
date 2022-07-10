@@ -76,34 +76,34 @@ impl<'a> Graph<'a> {
 
     pub fn push(&mut self, vertex: Vertex<'a>) {
         let id = self.dag.add_node(vertex.clone());
+        self.connect_parents(&id, &vertex);
 
         match vertex.assign {
             // modify leaves
-            Some(assign) => match vertex.source.kind.as_str() {
-                // add source
-                "global" => {
-                    if !self.taint_leaves.contains_key(&vertex.source) {
-                        let new_leaf = Vertex::new_source(vertex.source.clone());
-                        let leaf_id = self.dag.add_node(new_leaf);
-                        let mut new_map = HashMap::new();
-                        new_map.insert(ContextStack::new(), leaf_id);
-                        self.taint_leaves.insert(vertex.source.clone(), new_map);
-                    }
-                    _ = self.dag.add_edge(
-                        *self
-                            .taint_leaves
-                            .get(&vertex.source)
-                            .unwrap()
-                            .get(&ContextStack::new())
-                            .unwrap(),
-                        id,
-                        ContextStack::new(),
-                    );
-                }
-                _ => (),
-            },
+            Some(assign) => {}
             // dont modify leaves
             None => {}
+        }
+    }
+
+    fn connect_parents(&mut self, id: &NodeIndex, vertex: &Vertex) {
+        match vertex.source.kind.as_str() {
+            // add source
+            "global" => {
+                if !self.taint_leaves.contains_key(&vertex.source) {
+                    let new_leaf = Vertex::new_source(vertex.source.clone());
+                    let leaf_id = self.dag.add_node(new_leaf);
+                    let mut new_map = HashMap::new();
+                    new_map.insert(ContextStack::new(), leaf_id);
+                    self.taint_leaves.insert(vertex.source.clone(), new_map);
+                }
+                for (_, leaf) in self.taint_leaves.get(&vertex.source).unwrap().iter() {
+                    _ = self
+                        .dag
+                        .add_edge(leaf.clone(), id.clone(), ContextStack::new());
+                }
+            }
+            _ => {}
         }
     }
 }
