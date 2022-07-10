@@ -22,14 +22,13 @@ impl<'a> Resolved<'a> {
         match self {
             Resolved::Function { cursor } => {
                 // create mutable closure
-                let mut enter_node = |cur: Cursor<'a>| -> bool {
+                let mut enter_node = |cur: Cursor<'a>| -> Breaker {
                     if cur.kind() == "simple_parameter" {
                         if let Some(n) = cur.name() {
                             v.push(n.to_string());
                         }
-                        return true;
                     }
-                    true
+                    Breaker::Continue
                 };
 
                 // traverse with closure

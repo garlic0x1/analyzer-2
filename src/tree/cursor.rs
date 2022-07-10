@@ -3,6 +3,12 @@ use super::resolved::*;
 use std::collections::HashMap;
 use tree_sitter::*;
 
+pub enum Breaker {
+    Continue,
+    Break,
+    Pass,
+}
+
 #[derive(Clone)]
 pub struct Cursor<'a> {
     cursor: TreeCursor<'a>,
@@ -59,20 +65,14 @@ impl<'a> Cursor<'a> {
         let mut name = String::new();
 
         // create a mutable closure, and capture the string to mutate
-        let mut enter_node = |cur: Self| -> bool {
+        let mut enter_node = |cur: Self| -> Breaker {
             if cur.cursor.node().kind() == "name" {
-                if name.len() > 0 {
-                    return false;
-                }
-                name = cur.to_string();
                 // return false to stop crawling
-                false
+                name = cur.to_string();
+                Breaker::Break
             } else {
-                if name.len() > 0 {
-                    return false;
-                }
                 // continue crawling
-                true
+                Breaker::Continue
             }
         };
 
@@ -92,7 +92,7 @@ impl<'a> Cursor<'a> {
         }
 
         // create a closure to give the traverser
-        let mut enter_node = |cur: Self| -> bool {
+        let mut enter_node = |cur: Self| -> Breaker {
             match cur.kind() {
                 "function_definition" => {
                     if let Some(name) = cur.name() {
@@ -117,7 +117,7 @@ impl<'a> Cursor<'a> {
                 }
                 _ => (),
             }
-            true
+            Breaker::Continue
         };
 
         let mut cur = self.clone();
@@ -139,7 +139,7 @@ impl<'a> Cursor<'a> {
     /// accepts a mutable closure to execute on node entry
     pub fn traverse(
         &mut self,
-        enter_node: &mut dyn FnMut(Self) -> bool,
+        enter_node: &mut dyn FnMut(Self) -> Breaker,
         leave_node: &mut dyn FnMut(Self),
     ) {
         let start_node = self.cursor.node().id();
@@ -149,20 +149,23 @@ impl<'a> Cursor<'a> {
                 if self.cursor.goto_next_sibling() {
                     visited = false;
                     if self.cursor.node().is_named() {
-                        if enter_node(self.clone()) {
-                            continue;
-                        }
-                        if self.cursor.goto_next_sibling() {
-                            continue;
-                        } else if self.cursor.goto_parent() {
-                            if self.cursor.node().is_named() {
-                                leave_node(self.clone());
+                        match enter_node(self.clone()) {
+                            Breaker::Continue => continue,
+                            Breaker::Break => break,
+                            Breaker::Pass => {
+                                if self.cursor.goto_next_sibling() {
+                                    continue;
+                                } else if self.cursor.goto_parent() {
+                                    if self.cursor.node().is_named() {
+                                        leave_node(self.clone());
+                                    }
+                                    if self.cursor.node().id() == start_node {
+                                        break;
+                                    }
+                                    visited = true;
+                                    continue;
+                                }
                             }
-                            if self.cursor.node().id() == start_node {
-                                break;
-                            }
-                            visited = true;
-                            continue;
                         }
                     }
                 } else if self.cursor.goto_parent() {
@@ -177,21 +180,23 @@ impl<'a> Cursor<'a> {
                 }
             } else if self.cursor.goto_first_child() {
                 if self.cursor.node().is_named() {
-                    if enter_node(self.clone()) {
-                        continue;
-                    }
-                    if self.cursor.goto_next_sibling() {
-                        visited = false;
-                        continue;
-                    } else if self.cursor.goto_parent() {
-                        if self.cursor.node().is_named() {
-                            leave_node(self.clone());
+                    match enter_node(self.clone()) {
+                        Breaker::Continue => continue,
+                        Breaker::Break => break,
+                        Breaker::Pass => {
+                            if self.cursor.goto_next_sibling() {
+                                continue;
+                            } else if self.cursor.goto_parent() {
+                                if self.cursor.node().is_named() {
+                                    leave_node(self.clone());
+                                }
+                                if self.cursor.node().id() == start_node {
+                                    break;
+                                }
+                                visited = true;
+                                continue;
+                            }
                         }
-                        if self.cursor.node().id() == start_node {
-                            break;
-                        }
-                        visited = true;
-                        continue;
                     }
                 }
             } else {

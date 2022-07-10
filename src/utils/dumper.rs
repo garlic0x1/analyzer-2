@@ -17,11 +17,11 @@ impl<'a> Dumper<'a> {
     /// dump the tree as a string
     pub fn dump(&self) -> String {
         let mut string = String::new();
-        let mut node_handler = |cur: Cursor| -> bool {
+        let mut node_handler = |cur: Cursor| -> Breaker {
             let indent = "  ".repeat(Dumper::depth(cur.clone()));
             string.push_str(&format!("{}Kind: {}\n", indent, cur.kind()));
             string.push_str(&format!("{}Name: {:?}\n", indent, cur.name()));
-            true
+            Breaker::Continue
         };
 
         for file in self.files.iter() {

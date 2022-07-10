@@ -27,16 +27,16 @@ impl<'a> Analyzer<'a> {
 
     /// traverse the program, looking for taints to trace, and following program flow
     fn traverse(&mut self, cursor: Cursor) {
-        let mut closure = |cur: Cursor| -> bool {
+        let mut closure = |cur: Cursor| -> Breaker {
             match cur.kind() {
                 "variable_name" => {
                     // check for taint and trace
                     self.trace(cur);
-                    true
+                    Breaker::Continue
                 }
                 // do not crawl into these node types
-                "function_definition" => false,
-                _ => true,
+                "function_definition" => Breaker::Pass,
+                _ => Breaker::Continue,
             }
         };
 
