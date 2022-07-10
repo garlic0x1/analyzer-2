@@ -15,7 +15,7 @@ function test($p1, $p2) {
 function test2($p1, $p2) {
 	
 }
-query(test($input, $a));
-$newval = test2($input, $filtered);
+query($input, $a);
+$newval = test($input, $filtered);
 $newval = test(0, $filtered);
 ?>

@@ -86,7 +86,6 @@ impl<'a> Analyzer<'a> {
                 // record index
                 "argument" => {
                     index = cur.get_index();
-                    println!("index: {}\n{}", index, cur.to_string());
                     true
                 }
                 "assignment_expression" => {
