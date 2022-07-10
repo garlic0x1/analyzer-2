@@ -1,7 +1,6 @@
 use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
-use crate::tree::resolved;
 use crate::tree::resolved::*;
 use std::collections::HashMap;
 
@@ -80,9 +79,15 @@ impl<'a> Analyzer<'a> {
     /// trace taints up the tree
     fn trace(&mut self, cursor: Cursor) {
         let mut path = Vec::new();
+        let mut index: usize = 0;
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {
                 "expression_statement" => false,
+                // record index
+                "simple_argument" => {
+                    index = cur.get_index();
+                    true
+                }
                 "assignment_expression" => {
                     self.taints.push(Taint::new_variable(cur.clone()));
                     path.push(format!("assign {}", cur.name().unwrap()));
@@ -95,7 +100,14 @@ impl<'a> Analyzer<'a> {
                             resolved.cursor().kind().to_string(),
                             resolved.cursor().name().unwrap(),
                         ));
+                        let params = resolved.parameters();
+                        let param_cur = params
+                            .get(index)
+                            .expect("unknown index (didnt pass through argument)");
+                        let param_taint = Taint::new_variable(param_cur.clone());
+                        self.taints.push(param_taint.clone());
                         self.traverse(resolved.cursor());
+                        self.taints.remove(&param_taint);
                         self.context.pop();
                     }
                     path.push(cur.name().unwrap());

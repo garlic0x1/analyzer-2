@@ -24,17 +24,15 @@ impl<'a> Resolved<'a> {
 
     /// returns vec of resolved parameter names
     /// empty if not function variant
-    pub fn parameters(&self) -> Vec<String> {
-        let mut v: Vec<String> = Vec::new();
+    pub fn parameters(&self) -> Vec<Cursor<'a>> {
+        let mut v = Vec::new();
 
         match self {
             Resolved::Function { cursor } => {
                 // create mutable closure
                 let mut enter_node = |cur: Cursor<'a>| -> Breaker {
                     if cur.kind() == "simple_parameter" {
-                        if let Some(n) = cur.name() {
-                            v.push(n.to_string());
-                        }
+                        v.push(cur);
                     }
                     Breaker::Continue
                 };
