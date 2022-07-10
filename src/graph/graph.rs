@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
 use daggy::*;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Vertex<'a> {
