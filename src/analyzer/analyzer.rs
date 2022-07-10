@@ -32,7 +32,7 @@ impl<'a> Analyzer<'a> {
             match cur.kind() {
                 "variable_name" => {
                     // check for taint and trace
-                    self.trace(cursor.clone());
+                    self.trace(cur);
                     true
                 }
                 // do not crawl into these node types
@@ -53,6 +53,7 @@ impl<'a> Analyzer<'a> {
                 "assignment_expression" => false,
                 "function_call_expression" => {
                     path.push(cur.name());
+                    println!("{:?}", cur.name());
                     true
                 }
                 _ => true,
@@ -60,7 +61,7 @@ impl<'a> Analyzer<'a> {
         };
         let mut cursor = cursor;
         cursor.trace(&mut closure);
-
+        println!("{}, {:?}", cursor.kind(), cursor.name());
         println!("{:?}", path);
     }
 }

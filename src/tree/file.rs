@@ -1,3 +1,4 @@
+use super::cursor::Cursor;
 use tree_sitter::*;
 
 pub struct File<'a> {
@@ -19,7 +20,11 @@ impl<'a> File<'a> {
         self.source
     }
 
-    pub fn get_cursor(&self) -> TreeCursor<'a> {
+    pub fn raw_cursor(&self) -> TreeCursor<'a> {
         self.tree.walk()
+    }
+
+    pub fn cursor(&'a self) -> Cursor<'a> {
+        Cursor::new(self.raw_cursor(), self)
     }
 }

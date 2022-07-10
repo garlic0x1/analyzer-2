@@ -7,11 +7,13 @@ use tree::cursor::*;
 use tree::file::*;
 use tree::resolved::*;
 use tree_sitter::*;
+use utils::dumper::*;
 
 //pub mod analyzer;
 pub mod analyzer;
 //pub mod graph;
 pub mod tree;
+pub mod utils;
 
 fn main() {
     let source_code = fs::read_to_string("test.php").expect("failed to read file");
@@ -22,6 +24,8 @@ fn main() {
         .expect("Error loading PHP parsing support");
     let tree = parser.parse(&source_code, None).unwrap();
     let file = File::new("test.php".to_string(), &tree, &source_code);
+    let mut dumper = Dumper::new(vec![&file]);
+    println!("{}", dumper.dump());
     let mut analyzer = Analyzer::new(vec![&file]);
     analyzer.analyze();
 }

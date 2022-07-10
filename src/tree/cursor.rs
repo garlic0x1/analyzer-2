@@ -16,7 +16,7 @@ impl<'a> Cursor<'a> {
 
     pub fn from_file(file: &'a File<'a>) -> Self {
         Self {
-            cursor: file.get_cursor(),
+            cursor: file.raw_cursor(),
             file,
         }
     }
@@ -61,10 +61,16 @@ impl<'a> Cursor<'a> {
         // create a mutable closure, and capture the string to mutate
         let mut enter_node = |cur: Self| -> bool {
             if cur.cursor.node().kind() == "name" {
+                if name.len() > 0 {
+                    return false;
+                }
                 name = cur.to_string();
                 // return false to stop crawling
                 false
             } else {
+                if name.len() > 0 {
+                    return false;
+                }
                 // continue crawling
                 true
             }
@@ -121,8 +127,10 @@ impl<'a> Cursor<'a> {
     }
     /// traces up the tree calling closure
     pub fn trace(&mut self, closure: &mut dyn FnMut(Self) -> bool) {
-        while self.cursor.goto_parent() {
-            closure(self.clone());
+        while self.goto_parent() {
+            if !closure(self.clone()) {
+                break;
+            }
         }
     }
 
@@ -137,18 +145,24 @@ impl<'a> Cursor<'a> {
         loop {
             if visited {
                 if self.cursor.goto_next_sibling() {
+                    visited = false;
                     if self.cursor.node().is_named() {
                         if enter_node(self.clone()) {
-                            visited = false;
                             continue;
                         }
                         if self.cursor.goto_next_sibling() {
                             continue;
                         } else if self.cursor.goto_parent() {
+                            if self.cursor.node().is_named() {
+                                leave_node(self.clone());
+                            }
+                            if self.cursor.node().id() == start_node {
+                                break;
+                            }
+                            visited = true;
                             continue;
                         }
                     }
-                    visited = false;
                 } else if self.cursor.goto_parent() {
                     if self.cursor.node().is_named() {
                         leave_node(self.clone());
@@ -168,6 +182,12 @@ impl<'a> Cursor<'a> {
                         visited = false;
                         continue;
                     } else if self.cursor.goto_parent() {
+                        if self.cursor.node().is_named() {
+                            leave_node(self.clone());
+                        }
+                        if self.cursor.node().id() == start_node {
+                            break;
+                        }
                         visited = true;
                         continue;
                     }
