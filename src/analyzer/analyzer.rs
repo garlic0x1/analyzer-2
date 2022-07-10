@@ -54,12 +54,17 @@ impl<'a> Analyzer<'a> {
         let mut closure = |cur: Cursor| -> Breaker {
             match cur.kind() {
                 "variable_name" => {
+                    // check if in left of assignment and return
+                    if let Some(s) = cur.raw_cursor().field_name() {
+                        if s == "left" {
+                            return Breaker::Continue;
+                        }
+                    }
+
                     // check for taint and trace
-                    if self.taints.contains(&Taint::new(cur.clone())) {
-                        println!("tracing");
+                    if self.taints.contains(&Taint::new_variable(cur.clone())) {
                         self.trace(cur);
                     }
-                    println!("not tracing");
                     Breaker::Continue
                 }
                 // do not crawl into these node types
@@ -77,6 +82,11 @@ impl<'a> Analyzer<'a> {
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {
                 "expression_statement" => false,
+                "assignment_expression" => {
+                    self.taints.push(Taint::new_variable(cur));
+                    println!("{:?}", self.taints);
+                    false
+                }
                 "function_call_expression" => {
                     //path.push(cur.name());
                     //println!("{:?}", cur.name());

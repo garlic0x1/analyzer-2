@@ -11,9 +11,9 @@ pub struct Taint {
 }
 
 impl Taint {
-    pub fn new(cursor: Cursor) -> Self {
+    pub fn new_variable(cursor: Cursor) -> Self {
         Self {
-            kind: cursor.kind().to_string(),
+            kind: "variable".to_string(),
             name: cursor.name().expect("unnamed taint"),
             scope: Scope::new(cursor),
         }
@@ -29,6 +29,7 @@ impl Taint {
 }
 
 // may need to change this to a hashmap for faster lookup times
+#[derive(Debug)]
 pub struct TaintList {
     vec: Vec<Taint>,
 }
@@ -55,7 +56,7 @@ impl TaintList {
     pub fn contains(&self, taint: &Taint) -> bool {
         for t in self.vec.iter() {
             // dont exhaustively match global sources
-            if t.kind == "source" {
+            if t.kind == "global" {
                 if t.name == taint.name {
                     return true;
                 }
