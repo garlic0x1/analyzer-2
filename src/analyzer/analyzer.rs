@@ -49,7 +49,9 @@ impl<'a> Analyzer<'a> {
     }
 
     /// traverse the program, looking for taints to trace, and following program flow
-    fn traverse(&mut self, cursor: Cursor) {
+    /// Optionally returns a taint with the function
+    fn traverse(&mut self, cursor: Cursor) -> bool {
+        let mut returns = false;
         let mut closure = |cur: Cursor| -> Breaker {
             match cur.kind() {
                 "variable_name" => {
@@ -62,7 +64,9 @@ impl<'a> Analyzer<'a> {
 
                     // check for taint and trace
                     if self.taints.contains(&Taint::new_variable(cur.clone())) {
-                        self.trace(cur);
+                        if self.trace(cur) {
+                            returns = true;
+                        }
                     }
                     Breaker::Continue
                 }
@@ -74,14 +78,20 @@ impl<'a> Analyzer<'a> {
 
         let mut cursor = cursor.clone();
         cursor.traverse(&mut closure, &mut |_| ());
+        returns
     }
 
     /// trace taints up the tree
-    fn trace(&mut self, cursor: Cursor) {
+    fn trace(&mut self, cursor: Cursor) -> bool {
         let mut path = Vec::new();
+        let mut returns = false;
         let mut index: usize = 0;
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {
+                "return_statement" => {
+                    returns = true;
+                    false
+                }
                 "expression_statement" => false,
                 // record index
                 "argument" => {
@@ -93,8 +103,8 @@ impl<'a> Analyzer<'a> {
                     path.push(format!("assign {}", cur.name().unwrap()));
                     false
                 }
-                // todo: pass param taint
                 "function_call_expression" => {
+                    let mut cont = true;
                     if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
                         self.context.push(Context::new(
                             resolved.cursor().kind().to_string(),
@@ -106,12 +116,12 @@ impl<'a> Analyzer<'a> {
                             .expect("unknown index (didnt pass through argument)");
                         let param_taint = Taint::new_variable(param_cur.clone());
                         self.taints.push(param_taint.clone());
-                        self.traverse(resolved.cursor());
+                        cont = self.traverse(resolved.cursor());
                         self.taints.remove(&param_taint);
                         self.context.pop();
                     }
                     path.push(cur.name().unwrap());
-                    true
+                    cont
                 }
                 _ => true,
             }
@@ -120,5 +130,6 @@ impl<'a> Analyzer<'a> {
         println!("{}, {:?}", cursor.kind(), cursor.name());
         cursor.trace(&mut closure);
         println!("{:?}", path);
+        returns
     }
 }
