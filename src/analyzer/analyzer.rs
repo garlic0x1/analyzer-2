@@ -69,8 +69,8 @@ impl<'a> Analyzer<'a> {
                     }
 
                     // check for taint and trace
-                    if self.taints.contains(&Taint::new_variable(cur.clone())) {
-                        if self.trace(cur) {
+                    if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
+                        if self.trace(cur, t.kind) {
                             returns = true;
                         }
                     }
@@ -87,9 +87,9 @@ impl<'a> Analyzer<'a> {
     }
 
     /// trace taints up the tree
-    fn trace(&mut self, cursor: Cursor<'a>) -> bool {
+    fn trace(&mut self, cursor: Cursor<'a>, kind: TaintKind) -> bool {
         let mut path = Vec::new();
-        let source = Taint::new_param(cursor.clone());
+        let source = Taint::new(cursor.clone(), kind);
         let mut returns = false;
         let mut index: usize = 0;
         let mut closure = |cur: Cursor<'a>| -> bool {

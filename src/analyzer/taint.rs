@@ -17,6 +17,14 @@ pub struct Taint {
 }
 
 impl Taint {
+    pub fn new(cursor: Cursor, kind: TaintKind) -> Self {
+        Self {
+            kind,
+            name: cursor.name().expect("unnamed taint"),
+            scope: Scope::new(cursor),
+        }
+    }
+
     pub fn new_variable(cursor: Cursor) -> Self {
         Self {
             kind: TaintKind::Variable,
@@ -67,6 +75,15 @@ impl TaintList {
             }
         }
         self.vec = newvec;
+    }
+
+    pub fn get(&self, taint: &Taint) -> Option<Taint> {
+        for t in self.vec.iter() {
+            if t.name == taint.name {
+                return Some(t.clone());
+            }
+        }
+        None
     }
 
     pub fn contains(&self, taint: &Taint) -> bool {

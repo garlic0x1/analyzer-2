@@ -118,26 +118,38 @@ impl<'a> Graph<'a> {
     }
 
     fn connect_parents(&mut self, id: &NodeIndex, vertex: &Vertex) {
-        match vertex.source.kind {
-            // add source
-            TaintKind::Source | TaintKind::Param => {
-                if !self.taint_leaves.contains_key(&vertex.source.clone()) {
-                    let new_leaf =
-                        Vertex::new_param(vertex.source.clone(), vertex.assign.clone().unwrap());
-                    let leaf_id = self.dag.add_node(new_leaf);
-                    let mut new_map = HashMap::new();
-                    new_map.insert(vertex.context.clone(), leaf_id);
-                    println!("inserted leaf");
-                    self.taint_leaves.insert(vertex.source.clone(), new_map);
+        match &vertex.assign {
+            Some(assign) => match assign.kind {
+                // add source
+                TaintKind::Variable | TaintKind::Source | TaintKind::Param => {
+                    if !self.taint_leaves.contains_key(&vertex.source.clone()) {
+                        let new_leaf = Vertex::new_param(
+                            vertex.source.clone(),
+                            vertex.assign.clone().unwrap(),
+                        );
+                        let leaf_id = self.dag.add_node(new_leaf);
+                        let mut new_map = HashMap::new();
+                        new_map.insert(vertex.context.clone(), leaf_id);
+                        println!("inserted leaf");
+                        self.taint_leaves.insert(vertex.source.clone(), new_map);
+                    }
+                    for (_, leaf) in self.taint_leaves.get(&vertex.source).unwrap().iter() {
+                        _ = self
+                            .dag
+                            .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
+                    }
                 }
-                for (_, leaf) in self.taint_leaves.get(&vertex.source).unwrap().iter() {
-                    _ = self
-                        .dag
-                        .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
-                }
-            }
+                // TaintKind::Variable => {
+                //     for (_, leaf) in self.taint_leaves.get(&vertex.source).unwrap().iter() {
+                //         _ = self
+                //             .dag
+                //             .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
+                //     }
+                // }
+                _ => (),
+            },
             // shouldnt need to add source, so assume there are leaves but still handle errors
-            _ => {
+            None => {
                 if let Some(leaves) = self.taint_leaves.get(&vertex.source) {
                     for (_, leaf) in leaves.iter() {
                         _ = self
