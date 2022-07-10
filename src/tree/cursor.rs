@@ -88,7 +88,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// resolve all namespaces underneath the cursor
-    pub fn resolve(&self) -> HashMap<String, Resolved> {
+    pub fn resolve(&self) -> HashMap<String, Resolved<'a>> {
         let mut list: HashMap<String, Resolved> = HashMap::new();
 
         if !self.cursor.clone().goto_parent() {

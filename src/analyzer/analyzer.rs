@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
@@ -7,6 +9,7 @@ pub struct Analyzer<'a> {
     taints: TaintList,
     context: ContextStack,
     files: Vec<&'a File<'a>>,
+    resolved: HashMap<String, Resolved<'a>>,
 }
 
 impl<'a> Analyzer<'a> {
@@ -15,9 +18,11 @@ impl<'a> Analyzer<'a> {
             taints: TaintList::new(),
             context: ContextStack::new(),
             files,
+            resolved: HashMap::new(),
         }
     }
 
+    /// returns a new analyzer with sources to trace
     pub fn from_sources(files: Vec<&'a File<'a>>, sources: Vec<String>) -> Self {
         let mut taints = TaintList::new();
         for source in sources {
@@ -27,11 +32,18 @@ impl<'a> Analyzer<'a> {
             files,
             taints,
             context: ContextStack::new(),
+            resolved: HashMap::new(),
         }
     }
 
-    /// begins analysis assumming the first file is the main/starting file
+    /// first resolves names
+    /// then begins traversal
     pub fn analyze(&mut self) {
+        for file in self.files.iter() {
+            let cur = Cursor::from_file(file);
+            self.resolved.extend(cur.resolve());
+        }
+
         self.traverse(Cursor::from_file(
             self.files.get(0).expect("no files provided"),
         ));

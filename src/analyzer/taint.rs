@@ -21,7 +21,7 @@ impl Taint {
 
     pub fn new_global(name: String) -> Self {
         Self {
-            kind: "source".to_string(),
+            kind: "global".to_string(),
             name,
             scope: Scope::new_global(),
         }

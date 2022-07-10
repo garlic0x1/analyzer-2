@@ -14,6 +14,13 @@ impl<'a> Resolved<'a> {
         Self::Root { cursor }
     }
 
+    pub fn cursor(&self) -> Cursor {
+        match self {
+            Resolved::Function { cursor } => cursor.clone(),
+            Resolved::Root { cursor } => cursor.clone(),
+        }
+    }
+
     /// returns vec of resolved parameter names
     /// empty if not function variant
     pub fn parameters(&self) -> Vec<String> {
