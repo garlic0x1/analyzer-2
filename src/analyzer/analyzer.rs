@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-
 use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
+use crate::tree::resolved;
 use crate::tree::resolved::*;
+use std::collections::HashMap;
 
 pub struct Analyzer<'a> {
     taints: TaintList,
@@ -77,20 +77,28 @@ impl<'a> Analyzer<'a> {
         cursor.traverse(&mut closure, &mut |_| ());
     }
 
+    /// trace taints up the tree
     fn trace(&mut self, cursor: Cursor) {
         let mut path = Vec::new();
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {
                 "expression_statement" => false,
                 "assignment_expression" => {
-                    self.taints.push(Taint::new_variable(cur));
-                    println!("{:?}", self.taints);
+                    self.taints.push(Taint::new_variable(cur.clone()));
+                    path.push(format!("assign {}", cur.name().unwrap()));
                     false
                 }
+                // todo: pass param taint
                 "function_call_expression" => {
-                    //path.push(cur.name());
-                    //println!("{:?}", cur.name());
-                    path.push(cur.name());
+                    if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
+                        self.context.push(Context::new(
+                            resolved.cursor().kind().to_string(),
+                            resolved.cursor().name().unwrap(),
+                        ));
+                        self.traverse(resolved.cursor());
+                        self.context.pop();
+                    }
+                    path.push(cur.name().unwrap());
                     true
                 }
                 _ => true,

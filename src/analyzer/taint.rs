@@ -1,7 +1,4 @@
 use crate::tree::cursor::*;
-use crate::tree::file::*;
-use crate::tree::resolved::*;
-use tree_sitter::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Taint {

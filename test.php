@@ -8,7 +8,7 @@ query($value);
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
 function test($p1, $p2) {
-	
+	$local_var = $_GET;	
 }
 
 function test2($p1, $p2) {

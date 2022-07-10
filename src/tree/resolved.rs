@@ -1,5 +1,6 @@
 use super::cursor::*;
 
+#[derive(Clone)]
 pub enum Resolved<'a> {
     Function { cursor: Cursor<'a> },
     Root { cursor: Cursor<'a> },
