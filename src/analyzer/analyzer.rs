@@ -5,16 +5,16 @@ use crate::tree::resolved::*;
 use tree_sitter::*;
 
 pub struct Analyzer<'a> {
-    taints: Vec<Taint>,
-    context_stack: Vec<Context>,
+    taints: TaintList,
+    context: ContextStack,
     files: Vec<&'a File<'a>>,
 }
 
 impl<'a> Analyzer<'a> {
     pub fn new(files: Vec<&'a File<'a>>) -> Self {
         Self {
-            taints: Vec::new(),
-            context_stack: Vec::new(),
+            taints: TaintList::new(),
+            context: ContextStack::new(),
             files,
         }
     }
@@ -27,7 +27,7 @@ impl<'a> Analyzer<'a> {
     }
 
     /// traverse the program, looking for taints to trace, and following program flow
-    pub fn traverse(&mut self, cursor: Cursor) {
+    fn traverse(&mut self, cursor: Cursor) {
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {
                 "variable_name" => {
