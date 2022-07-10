@@ -27,6 +27,10 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    pub fn filename(&self) -> String {
+        self.file.name()
+    }
+
     pub fn kind(&self) -> &str {
         self.cursor.node().kind()
     }

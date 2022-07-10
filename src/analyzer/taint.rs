@@ -77,6 +77,7 @@ pub struct Scope {
 impl Scope {
     pub fn new(cursor: Cursor) -> Self {
         let mut s = Self::new_global();
+        s.filename = Some(cursor.filename());
 
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {

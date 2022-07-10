@@ -80,7 +80,20 @@ impl<'a> Graph<'a> {
 
         match vertex.assign {
             // modify leaves
-            Some(assign) => {}
+            Some(assign) => {
+                if let Some(leaves) = self.taint_leaves.get_mut(&assign) {
+                    for (ctx, _) in leaves.clone().iter() {
+                        if vertex.context.contains(&ctx) {
+                            leaves.remove(&ctx);
+                        }
+                    }
+                    leaves.insert(vertex.context, id);
+                } else {
+                    let mut newmap = HashMap::new();
+                    newmap.insert(vertex.context, id);
+                    self.taint_leaves.insert(assign, newmap);
+                }
+            }
             // dont modify leaves
             None => {}
         }
@@ -100,10 +113,21 @@ impl<'a> Graph<'a> {
                 for (_, leaf) in self.taint_leaves.get(&vertex.source).unwrap().iter() {
                     _ = self
                         .dag
-                        .add_edge(leaf.clone(), id.clone(), ContextStack::new());
+                        .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
                 }
             }
-            _ => {}
+            // shouldnt need to add source, so assume there are leaves but still handle errors
+            other => {
+                if let Some(leaves) = self.taint_leaves.get(&vertex.source) {
+                    for (_, leaf) in leaves.iter() {
+                        _ = self
+                            .dag
+                            .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
+                    }
+                } else {
+                    println!("unexpected behavior");
+                }
+            }
         }
     }
 }
