@@ -84,8 +84,9 @@ impl<'a> Analyzer<'a> {
             match cur.kind() {
                 "expression_statement" => false,
                 // record index
-                "simple_argument" => {
+                "argument" => {
                     index = cur.get_index();
+                    println!("index: {}\n{}", index, cur.to_string());
                     true
                 }
                 "assignment_expression" => {

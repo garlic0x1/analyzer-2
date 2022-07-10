@@ -45,6 +45,8 @@ impl TaintList {
         for t in self.vec.iter() {
             if t != taint {
                 newvec.push(t.clone());
+            } else {
+                println!("removing {:?}", t);
             }
         }
         self.vec = newvec;

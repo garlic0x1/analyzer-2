@@ -1,5 +1,5 @@
 <?php
-$input = test($_GET[0]);
+$input = unknown($_GET[0]);
 $value = $_GET;
 if (false) {
 	$value = intval($input);
@@ -16,5 +16,6 @@ function test2($p1, $p2) {
 	
 }
 query(test($input, $a));
-$newval = test($input, $filtered);
+$newval = test2($input, $filtered);
+$newval = test(0, $filtered);
 ?>
