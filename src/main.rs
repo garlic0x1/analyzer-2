@@ -24,9 +24,10 @@ fn main() {
         .expect("Error loading PHP parsing support");
     let tree = parser.parse(&source_code, None).unwrap();
     let file = File::new("test.php".to_string(), &tree, &source_code);
-    let mut dumper = Dumper::new(vec![&file]);
+    let dumper = Dumper::new(vec![&file]);
     println!("{}", dumper.dump());
-    let mut analyzer = Analyzer::new(vec![&file]);
+    let mut analyzer =
+        Analyzer::from_sources(vec![&file], vec!["_GET".to_string(), "_POST".to_string()]);
     analyzer.analyze();
 }
 

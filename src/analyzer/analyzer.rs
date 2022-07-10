@@ -18,6 +18,18 @@ impl<'a> Analyzer<'a> {
         }
     }
 
+    pub fn from_sources(files: Vec<&'a File<'a>>, sources: Vec<String>) -> Self {
+        let mut taints = TaintList::new();
+        for source in sources {
+            taints.push(Taint::new_global(source));
+        }
+        Self {
+            files,
+            taints,
+            context: ContextStack::new(),
+        }
+    }
+
     /// begins analysis assumming the first file is the main/starting file
     pub fn analyze(&mut self) {
         self.traverse(Cursor::from_file(
@@ -31,7 +43,11 @@ impl<'a> Analyzer<'a> {
             match cur.kind() {
                 "variable_name" => {
                     // check for taint and trace
-                    self.trace(cur);
+                    if self.taints.contains(&Taint::new(cur.clone())) {
+                        println!("tracing");
+                        self.trace(cur);
+                    }
+                    println!("not tracing");
                     Breaker::Continue
                 }
                 // do not crawl into these node types

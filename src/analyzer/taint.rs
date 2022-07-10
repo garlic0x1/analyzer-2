@@ -3,7 +3,7 @@ use crate::tree::file::*;
 use crate::tree::resolved::*;
 use tree_sitter::*;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Taint {
     pub kind: String,
     pub name: String,
@@ -16,6 +16,14 @@ impl Taint {
             kind: cursor.kind().to_string(),
             name: cursor.name().expect("unnamed taint"),
             scope: Scope::new(cursor),
+        }
+    }
+
+    pub fn new_global(name: String) -> Self {
+        Self {
+            kind: "source".to_string(),
+            name,
+            scope: Scope::new_global(),
         }
     }
 }
@@ -46,7 +54,12 @@ impl TaintList {
 
     pub fn contains(&self, taint: &Taint) -> bool {
         for t in self.vec.iter() {
-            if t == taint {
+            // dont exhaustively match global sources
+            if t.kind == "source" {
+                if t.name == taint.name {
+                    return true;
+                }
+            } else if t == taint {
                 return true;
             }
         }
@@ -54,7 +67,7 @@ impl TaintList {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Scope {
     pub filename: Option<String>,
     pub function: Option<String>,

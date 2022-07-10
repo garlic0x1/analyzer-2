@@ -62,6 +62,10 @@ impl<'a> Cursor<'a> {
     }
 
     pub fn name(&self) -> Option<String> {
+        // handle name nodes properly
+        if self.kind() == "name" {
+            return Some(self.to_string());
+        }
         let mut name = String::new();
 
         // create a mutable closure, and capture the string to mutate
@@ -162,7 +166,7 @@ impl<'a> Cursor<'a> {
                                     if self.cursor.node().id() == start_node {
                                         break;
                                     }
-                                    visited = true;
+                                    //visited = true;
                                     continue;
                                 }
                             }
@@ -193,7 +197,7 @@ impl<'a> Cursor<'a> {
                                 if self.cursor.node().id() == start_node {
                                     break;
                                 }
-                                visited = true;
+                                //visited = true;
                                 continue;
                             }
                         }

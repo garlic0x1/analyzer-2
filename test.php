@@ -1,5 +1,5 @@
 <?php
-$input = $_GET[0];
+$input = test($_GET[0]);
 $value = $_GET;
 if (false) {
 	$value = intval($input);
