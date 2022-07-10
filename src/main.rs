@@ -23,5 +23,5 @@ fn main() {
     println!("{}", dumper.resolved());
     let mut analyzer =
         Analyzer::from_sources(vec![&file], vec!["_GET".to_string(), "_POST".to_string()]);
-    analyzer.analyze();
+    println!("{}", analyzer.analyze());
 }

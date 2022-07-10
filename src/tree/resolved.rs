@@ -15,7 +15,7 @@ impl<'a> Resolved<'a> {
         Self::Root { cursor }
     }
 
-    pub fn cursor(&self) -> Cursor {
+    pub fn cursor(&self) -> Cursor<'a> {
         match self {
             Resolved::Function { cursor } => cursor.clone(),
             Resolved::Root { cursor } => cursor.clone(),
