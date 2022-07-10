@@ -89,7 +89,7 @@ impl<'a> Analyzer<'a> {
     /// trace taints up the tree
     fn trace(&mut self, cursor: Cursor<'a>) -> bool {
         let mut path = Vec::new();
-        let source = Taint::new_variable(cursor.clone());
+        let source = Taint::new_param(cursor.clone());
         let mut returns = false;
         let mut index: usize = 0;
         let mut closure = |cur: Cursor<'a>| -> bool {
@@ -131,6 +131,8 @@ impl<'a> Analyzer<'a> {
 
                         println!("{:?}", param_cur.name());
                         let param_taint = Taint::new_param(param_cur.clone());
+
+                        //push
                         self.taints.push(param_taint.clone());
                         path.push(cur.clone());
                         self.graph.push(Vertex::new(
@@ -139,8 +141,10 @@ impl<'a> Analyzer<'a> {
                             Some(param_taint.clone()),
                             path.clone(),
                         ));
+
                         cont = self.traverse(resolved.cursor());
-                        self.taints.remove(&param_taint);
+
+                        //pop
                         self.taints.clear_scope(&Scope::new(param_cur.clone()));
                         self.graph.clear_scope(&Scope::new(param_cur.clone()));
                         self.context.pop();

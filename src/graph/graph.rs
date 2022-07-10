@@ -95,9 +95,10 @@ impl<'a> Graph<'a> {
         let id = self.dag.add_node(vertex.clone());
         self.connect_parents(&id, &vertex);
 
-        match vertex.assign {
+        match vertex.clone().assign {
             // modify leaves
             Some(assign) => {
+                println!("assign{:?}", vertex.clone());
                 if let Some(leaves) = self.taint_leaves.get_mut(&assign) {
                     for (ctx, _) in leaves.clone().iter() {
                         if vertex.context.contains(&ctx) {
@@ -120,11 +121,9 @@ impl<'a> Graph<'a> {
         match vertex.source.kind {
             // add source
             TaintKind::Source | TaintKind::Param => {
-                if !self
-                    .taint_leaves
-                    .contains_key(&vertex.assign.clone().unwrap())
-                {
-                    let new_leaf = Vertex::new_source(vertex.assign.clone().unwrap());
+                if !self.taint_leaves.contains_key(&vertex.source.clone()) {
+                    let new_leaf =
+                        Vertex::new_param(vertex.source.clone(), vertex.assign.clone().unwrap());
                     let leaf_id = self.dag.add_node(new_leaf);
                     let mut new_map = HashMap::new();
                     new_map.insert(vertex.context.clone(), leaf_id);

@@ -79,7 +79,7 @@ impl TaintList {
                     }
                 }
                 TaintKind::Variable => {
-                    if t == taint {
+                    if t.name == taint.name {
                         return true;
                     }
                 }
