@@ -22,16 +22,17 @@ fn main() {
         .expect("Error loading PHP parsing support");
     let tree = parser.parse(&source_code, None).unwrap();
     let file = File::new("test.php".to_string(), &tree, &source_code);
+    let mut analyzer = Analyzer::new(vec![&file]);
+    analyzer.analyze();
+}
 
-    let curs = Cursor::new(tree.walk(), &file);
-    let resolved = curs.resolve();
+/*
+    //let curs = Cursor::new(tree.walk(), &file);
+    //let resolved = curs.resolve();
     for (k, r) in resolved.iter() {
         println!("{:?}", r.parameters());
         println!("{}", k);
     }
-}
-
-/*
 let ruleset = rules::Rules::new("");
 let source_code = fs::read_to_string("test.php").expect("failed to read file");
 let source_code1 = fs::read_to_string("test1.php").expect("failed to read file");

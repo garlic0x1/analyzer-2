@@ -3,7 +3,7 @@ use crate::tree::file::*;
 use crate::tree::resolved::*;
 use tree_sitter::*;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Taint {
     pub kind: String,
     pub name: String,
@@ -54,7 +54,7 @@ impl TaintList {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Scope {
     pub filename: Option<String>,
     pub function: Option<String>,
