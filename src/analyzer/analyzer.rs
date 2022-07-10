@@ -111,7 +111,7 @@ impl<'a> Analyzer<'a> {
                     self.graph.push(Vertex::new(
                         source.clone(),
                         self.context.clone(),
-                        Some(assign),
+                        Assign::Taint { assign },
                         path.clone(),
                     ));
                     false
@@ -138,7 +138,9 @@ impl<'a> Analyzer<'a> {
                         self.graph.push(Vertex::new(
                             source.clone(),
                             self.context.clone(),
-                            Some(param_taint.clone()),
+                            Assign::Taint {
+                                assign: param_taint.clone(),
+                            },
                             path.clone(),
                         ));
 
@@ -158,6 +160,18 @@ impl<'a> Analyzer<'a> {
         };
         let mut cursor = cursor;
         cursor.trace(&mut closure);
+        if let Some(cur) = path.pop() {
+            let vert = Vertex::new(
+                source,
+                self.context.clone(),
+                Assign::Unresolved {
+                    cursor: cur.clone(),
+                },
+                path,
+            );
+            self.graph.push(vert);
+        }
+
         returns
     }
 }

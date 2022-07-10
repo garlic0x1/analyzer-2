@@ -4,10 +4,31 @@ use daggy::*;
 use std::collections::HashMap;
 
 #[derive(Clone)]
+pub enum Assign<'a> {
+    Taint { assign: Taint },
+    Unresolved { cursor: Cursor<'a> },
+}
+
+impl<'a> std::fmt::Debug for Assign<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        match self {
+            Assign::Taint { assign } => {
+                s.push_str(&format!("{:?}", assign));
+            }
+            Assign::Unresolved { cursor } => {
+                s.push_str(&format!("{:?}", cursor.name()));
+            }
+        }
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Clone)]
 pub struct Vertex<'a> {
     pub source: Taint,
     pub context: ContextStack,
-    pub assign: Option<Taint>,
+    pub assign: Assign<'a>,
     pub path: Vec<Cursor<'a>>,
 }
 
@@ -19,6 +40,8 @@ impl<'a> std::fmt::Debug for Vertex<'a> {
             s.push_str(" -> ");
             s.push_str(&item.name().unwrap());
         }
+
+        s.push_str(&format!("{:?}", self.assign));
 
         // if let Some(t) = &self.assign {
         //     s.push_str(" -> ");
@@ -32,7 +55,7 @@ impl<'a> Vertex<'a> {
     pub fn new(
         source: Taint,
         context: ContextStack,
-        assign: Option<Taint>,
+        assign: Assign<'a>,
         path: Vec<Cursor<'a>>,
     ) -> Self {
         Self {
@@ -47,15 +70,15 @@ impl<'a> Vertex<'a> {
         Self {
             source: source.clone(),
             context: ContextStack::new(),
-            assign: Some(source),
+            assign: Assign::Taint { assign: source },
             path: Vec::new(),
         }
     }
-    pub fn new_param(source: Taint, assign: Taint) -> Self {
+    pub fn new_param(source: Taint, assign: Assign<'a>) -> Self {
         Self {
             source,
             context: ContextStack::new(),
-            assign: Some(assign),
+            assign,
             path: Vec::new(),
         }
     }
@@ -97,7 +120,7 @@ impl<'a> Graph<'a> {
 
         match vertex.clone().assign {
             // modify leaves
-            Some(assign) => {
+            Assign::Taint { assign } => {
                 println!("assign{:?}", vertex.clone());
                 if let Some(leaves) = self.taint_leaves.get_mut(&assign) {
                     for (ctx, _) in leaves.clone().iter() {
@@ -113,20 +136,18 @@ impl<'a> Graph<'a> {
                 }
             }
             // dont modify leaves
-            None => {}
+            Assign::Unresolved { cursor } => {}
         }
     }
 
-    fn connect_parents(&mut self, id: &NodeIndex, vertex: &Vertex) {
+    fn connect_parents(&mut self, id: &NodeIndex, vertex: &Vertex<'a>) {
         match &vertex.assign {
-            Some(assign) => match assign.kind {
+            Assign::Taint { assign } => match assign.kind {
                 // add source
                 TaintKind::Variable | TaintKind::Source | TaintKind::Param => {
                     if !self.taint_leaves.contains_key(&vertex.source.clone()) {
-                        let new_leaf = Vertex::new_param(
-                            vertex.source.clone(),
-                            vertex.assign.clone().unwrap(),
-                        );
+                        let new_leaf =
+                            Vertex::new_param(vertex.source.clone(), vertex.assign.clone());
                         let leaf_id = self.dag.add_node(new_leaf);
                         let mut new_map = HashMap::new();
                         new_map.insert(vertex.context.clone(), leaf_id);
@@ -139,17 +160,10 @@ impl<'a> Graph<'a> {
                             .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
                     }
                 }
-                // TaintKind::Variable => {
-                //     for (_, leaf) in self.taint_leaves.get(&vertex.source).unwrap().iter() {
-                //         _ = self
-                //             .dag
-                //             .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
-                //     }
-                // }
                 _ => (),
             },
             // shouldnt need to add source, so assume there are leaves but still handle errors
-            None => {
+            Assign::Unresolved { cursor } => {
                 if let Some(leaves) = self.taint_leaves.get(&vertex.source) {
                     for (_, leaf) in leaves.iter() {
                         _ = self
@@ -157,10 +171,7 @@ impl<'a> Graph<'a> {
                             .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
                     }
                 } else {
-                    println!(
-                        "unexpected behavior {:?} {:?}",
-                        vertex.source, vertex.assign
-                    );
+                    println!("unexpected behavior",);
                 }
             }
         }
