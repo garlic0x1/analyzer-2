@@ -47,4 +47,17 @@ impl<'a> Resolved<'a> {
             _ => v,
         }
     }
+
+    pub fn dump_parameters(&self) -> String {
+        let mut string = String::new();
+        for cur in self.parameters().iter() {
+            string.push_str(&cur.name().unwrap());
+            string.push(' ');
+        }
+        string
+    }
+
+    pub fn name(&self) -> String {
+        self.cursor().name().unwrap()
+    }
 }

@@ -1,8 +1,6 @@
 use crate::tree::cursor::*;
-use crate::tree::file;
 use crate::tree::file::*;
 use crate::tree::resolved::*;
-use tree_sitter::*;
 
 pub struct Dumper<'a> {
     files: Vec<&'a File<'a>>,
@@ -26,6 +24,23 @@ impl<'a> Dumper<'a> {
 
         for file in self.files.iter() {
             file.cursor().traverse(&mut node_handler, &mut |_| ());
+        }
+
+        string
+    }
+
+    pub fn resolved(&self) -> String {
+        let mut string = String::new();
+        for file in self.files.iter() {
+            for (_, r) in file.cursor().resolve().iter() {
+                if let Resolved::Function { cursor } = r {
+                    string.push_str(&format!(
+                        "{}: {}",
+                        cursor.name().unwrap(),
+                        r.dump_parameters()
+                    ));
+                }
+            }
         }
 
         string

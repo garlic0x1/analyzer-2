@@ -19,6 +19,7 @@ fn main() {
     let file = File::new("test.php".to_string(), &tree, &source_code);
     let dumper = Dumper::new(vec![&file]);
     println!("{}", dumper.dump());
+    println!("{}", dumper.resolved());
     let mut analyzer =
         Analyzer::from_sources(vec![&file], vec!["_GET".to_string(), "_POST".to_string()]);
     analyzer.analyze();
