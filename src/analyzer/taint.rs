@@ -41,6 +41,14 @@ impl Taint {
         }
     }
 
+    pub fn new_return(cursor: Cursor) -> Self {
+        Self {
+            kind: TaintKind::Return,
+            name: Scope::new(cursor.clone()).function.unwrap_or_default(),
+            scope: Scope::new(cursor.clone()),
+        }
+    }
+
     pub fn new_param(cursor: Cursor) -> Self {
         Self {
             kind: TaintKind::Param,
@@ -86,6 +94,16 @@ impl TaintList {
         None
     }
 
+    pub fn returns(&self) -> Vec<Taint> {
+        let mut newvec = Vec::new();
+        for t in self.vec.iter() {
+            if t.kind == TaintKind::Return {
+                newvec.push(t.clone());
+            }
+        }
+        newvec
+    }
+
     pub fn contains(&self, taint: &Taint) -> bool {
         for t in self.vec.iter() {
             // dont exhaustively match global sources
@@ -110,11 +128,20 @@ impl TaintList {
         for t in self.vec.iter() {
             if &t.scope != scope {
                 newvec.push(t.clone());
+            }
+        }
+        self.vec = newvec;
+    }
+
+    pub fn clear_returns(&mut self) {
+        let mut newvec = Vec::new();
+        for t in self.vec.iter() {
+            if t.kind != TaintKind::Return {
+                newvec.push(t.clone());
             } else {
                 println!("removing {:?}", t);
             }
         }
-
         self.vec = newvec;
     }
 }

@@ -1,5 +1,5 @@
 use crate::analyzer::taint::*;
-use crate::graph::graph::*;
+use crate::graph::flowgraph::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
 use crate::tree::resolved::*;
@@ -88,6 +88,14 @@ impl<'a> Analyzer<'a> {
                 }
             } else {
                 match cur.kind() {
+                    "function_call_expression" => {
+                        if self.taints.returns().len() > 0 {
+                            if self.trace(cur, TaintKind::Return) {
+                                returns = true;
+                            }
+                        }
+                        Breaker::Continue
+                    }
                     "if_statement" => {
                         self.context.pop();
                         Breaker::Continue
@@ -106,12 +114,12 @@ impl<'a> Analyzer<'a> {
         let mut path = Vec::new();
         let source = Taint::new(cursor.clone(), kind);
         let mut push_path = false;
-        let mut returns = false;
+        let mut returns = Vec::new();
         let mut index: usize = 0;
         let mut closure = |cur: Cursor<'a>| -> bool {
             match cur.kind() {
                 "return_statement" => {
-                    returns = true;
+                    returns.push(Taint::new_return(cur.clone()));
                     false
                 }
                 "expression_statement" => false,
@@ -123,13 +131,16 @@ impl<'a> Analyzer<'a> {
                 "assignment_expression" => {
                     let assign = Taint::new_variable(cur.clone());
                     self.taints.push(assign.clone());
-                    path.push(cur);
-                    self.graph.push(Vertex::new(
-                        source.clone(),
-                        self.context.clone(),
-                        Assign::Taint { assign },
-                        path.clone(),
-                    ));
+                    path.push(cur.clone());
+                    self.graph.push(
+                        cur.clone(),
+                        Vertex::new(
+                            source.clone(),
+                            self.context.clone(),
+                            Some(assign),
+                            path.clone(),
+                        ),
+                    );
                     push_path = false;
                     false
                 }
@@ -152,14 +163,15 @@ impl<'a> Analyzer<'a> {
                         //push
                         self.taints.push(param_taint.clone());
                         path.push(cur.clone());
-                        self.graph.push(Vertex::new(
-                            source.clone(),
-                            self.context.clone(),
-                            Assign::Taint {
-                                assign: param_taint.clone(),
-                            },
-                            path.clone(),
-                        ));
+                        self.graph.push(
+                            cur.clone(),
+                            Vertex::new(
+                                source.clone(),
+                                self.context.clone(),
+                                Some(param_taint.clone()),
+                                path.clone(),
+                            ),
+                        );
 
                         cont = self.traverse(resolved.cursor());
 
@@ -180,18 +192,11 @@ impl<'a> Analyzer<'a> {
         cursor.trace(&mut closure);
         if push_path {
             if let Some(cur) = path.pop() {
-                let vert = Vertex::new(
-                    source,
-                    self.context.clone(),
-                    Assign::Unresolved {
-                        cursor: cur.clone(),
-                    },
-                    path,
-                );
-                self.graph.push(vert);
+                let vert = Vertex::new(source, self.context.clone(), None, path);
+                self.graph.push(cur, vert);
             }
         }
 
-        returns
+        returns.len() > 0
     }
 }

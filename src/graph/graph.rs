@@ -28,7 +28,7 @@ impl<'a> std::fmt::Debug for Assign<'a> {
 pub struct Vertex<'a> {
     pub source: Taint,
     pub context: ContextStack,
-    pub assign: Assign<'a>,
+    pub assign: Option<Taint>,
     pub path: Vec<Cursor<'a>>,
 }
 

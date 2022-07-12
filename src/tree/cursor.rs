@@ -1,6 +1,7 @@
 use super::file::*;
 use super::resolved::*;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use tree_sitter::*;
 
 pub enum Breaker {
@@ -13,6 +14,19 @@ pub enum Breaker {
 pub struct Cursor<'a> {
     cursor: TreeCursor<'a>,
     file: &'a File<'a>,
+}
+
+impl<'a> Eq for Cursor<'a> {}
+impl<'a> PartialEq for Cursor<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.file.name() == other.file.name() && self.cursor.node().id() == other.cursor.node().id()
+    }
+}
+impl<'a> Hash for Cursor<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.file.name().hash(state);
+        self.cursor.node().id().hash(state);
+    }
 }
 
 impl<'a> Cursor<'a> {
