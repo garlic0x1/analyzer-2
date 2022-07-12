@@ -64,14 +64,14 @@ impl<'a> Analyzer<'a> {
                     "variable_name" => {
                         // check if in left of assignment and return
                         if let Some(s) = cur.raw_cursor().field_name() {
-                            if s != "left" {
-                                // check for taint and trace
-                                if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone()))
-                                {
-                                    if self.trace(cur, t) {
-                                        returns = true;
-                                    }
-                                }
+                            if s == "left" {
+                                return Breaker::Continue;
+                            }
+                        }
+                        // check for taint and trace
+                        if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
+                            if self.trace(cur, t) {
+                                returns = true;
                             }
                         }
 
@@ -158,9 +158,9 @@ impl<'a> Analyzer<'a> {
 
                         //push
                         self.push_taint(
-                            cur.clone(),
+                            param_cur.clone(),
                             source.clone(),
-                            param_taint.clone,
+                            param_taint.clone(),
                             path.clone(),
                         );
 
@@ -202,6 +202,7 @@ impl<'a> Analyzer<'a> {
     }
 
     fn push_taint(&mut self, cur: Cursor<'a>, source: Taint, assign: Taint, path: Vec<Cursor<'a>>) {
+        println!("@@@");
         self.taints.push(assign.clone());
         self.graph.push(
             cur.clone(),

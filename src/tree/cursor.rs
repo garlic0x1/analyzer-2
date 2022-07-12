@@ -17,11 +17,13 @@ pub struct Cursor<'a> {
 }
 
 impl<'a> Eq for Cursor<'a> {}
+
 impl<'a> PartialEq for Cursor<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.file.name() == other.file.name() && self.cursor.node().id() == other.cursor.node().id()
     }
 }
+
 impl<'a> Hash for Cursor<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.file.name().hash(state);
