@@ -86,10 +86,10 @@ impl<'a> Graph<'a> {
     }
 
     /// walk up a graph from vertex key
-    pub fn walk(&self, name: &str) -> Vec<Vec<Cursor<'a>>> {
+    pub fn walk(&self) -> Vec<Vec<Cursor<'a>>> {
         let mut paths = Vec::new();
         for (k, v) in self.nodes.iter() {
-            if k.kind() == "function_call_expression" {
+            if let None = v.last().unwrap().assign {
                 let stack = vec![k.clone()];
                 paths.extend(self.depth_first(stack));
             }

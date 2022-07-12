@@ -41,6 +41,6 @@ fn main() {
     println!("{}", analyzer.analyze());
 
     let graph = analyzer.graph();
-    let g = graph.walk("");
+    let g = graph.walk();
     println!("{:?}", g);
 }
