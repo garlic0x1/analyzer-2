@@ -39,4 +39,8 @@ fn main() {
     let mut analyzer =
         Analyzer::from_sources(vec![&file], vec!["_GET".to_string(), "_POST".to_string()]);
     println!("{}", analyzer.analyze());
+
+    let graph = analyzer.graph();
+    let g = graph.walk("");
+    println!("{:?}", g);
 }

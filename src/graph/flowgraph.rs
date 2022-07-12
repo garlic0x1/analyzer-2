@@ -85,25 +85,41 @@ impl<'a> Graph<'a> {
         }
     }
 
-    /*
     /// walk up a graph from vertex key
-    pub fn walk(&self, cursor: Cursor<'a>) -> Vec<Vec<Cursor<'a>>> {
+    pub fn walk(&self, name: &str) -> Vec<Vec<Cursor<'a>>> {
         let mut paths = Vec::new();
-        let verts = self.nodes.get(&cursor).unwrap(); // we know this wont have an error since we just inserted to nodes
-        for vert in verts.iter() {
-            let mut path = Vec::new();
-        }
-
-        let mut visited = false;
-        loop {
-            if visited {
-                if
+        for (k, v) in self.nodes.iter() {
+            if k.kind() == "function_call_expression" {
+                let stack = vec![k.clone()];
+                paths.extend(self.depth_first(stack));
             }
         }
 
         paths
     }
-    */
+
+    // recursively search for paths
+    fn depth_first(&self, stack: Vec<Cursor<'a>>) -> Vec<Vec<Cursor<'a>>> {
+        let mut stacks = Vec::new();
+        let mut stack = stack.clone();
+        if let Some(last) = stack.last() {
+            let node = self.nodes.get(last).unwrap();
+
+            let mut counter = 0;
+            for vert in node.iter() {
+                for parent in vert.parents.iter() {
+                    stack.push(parent.clone());
+                    stacks.extend(self.depth_first(stack.clone()));
+                    stack.pop();
+                    counter += 1;
+                }
+            }
+            if counter == 0 {
+                stacks.push(stack);
+            }
+        }
+        stacks
+    }
 
     /// push a taint to the graph
     pub fn push(&mut self, cursor: Cursor<'a>, vertex: Vertex<'a>) {

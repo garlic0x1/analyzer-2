@@ -31,6 +31,14 @@ impl<'a> Hash for Cursor<'a> {
     }
 }
 
+impl<'a> std::fmt::Debug for Cursor<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = self.kind();
+
+        write!(f, "{}", s)
+    }
+}
+
 impl<'a> Cursor<'a> {
     pub fn new(cursor: TreeCursor<'a>, file: &'a File<'a>) -> Self {
         Self { cursor, file }

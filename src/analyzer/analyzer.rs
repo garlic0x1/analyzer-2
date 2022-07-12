@@ -54,6 +54,9 @@ impl<'a> Analyzer<'a> {
         self.graph.dump()
     }
 
+    pub fn graph(&'a self) -> &'a Graph<'a> {
+        &self.graph
+    }
     /// traverse the program, looking for taints to trace, and following program flow
     /// Optionally returns a taint with the function
     fn traverse(&mut self, cursor: Cursor<'a>) -> bool {
