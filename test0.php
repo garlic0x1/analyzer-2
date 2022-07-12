@@ -16,4 +16,6 @@ function test($p1, $p2) {
 }
 
 $newval = test($value, $filtered);
+$newval2 = test($value, $filtered);
+$notaint = test();
 ?>

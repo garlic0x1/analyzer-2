@@ -49,7 +49,6 @@ impl<'a> Graph<'a> {
                 "\t{i} [ label = \"{}\" ]\n",
                 k.to_string().replace("\"", "\\\"")
             ));
-
             for vert in v.iter() {
                 for c in vert.parents.iter() {
                     let mut j = 0;
@@ -61,7 +60,6 @@ impl<'a> Graph<'a> {
                     }
                 }
             }
-
             i += 1;
         }
         s.push('}');
@@ -78,6 +76,7 @@ impl<'a> Graph<'a> {
         }
     }
 
+    // get rid of returns after using them, since they have global scope
     pub fn clear_returns(&mut self) {
         for (t, v) in self.leaves.iter_mut() {
             if t.kind == TaintKind::Return {
@@ -86,11 +85,31 @@ impl<'a> Graph<'a> {
         }
     }
 
+    /*
+    /// walk up a graph from vertex key
+    pub fn walk(&self, cursor: Cursor<'a>) -> Vec<Vec<Cursor<'a>>> {
+        let mut paths = Vec::new();
+        let verts = self.nodes.get(&cursor).unwrap(); // we know this wont have an error since we just inserted to nodes
+        for vert in verts.iter() {
+            let mut path = Vec::new();
+        }
+
+        let mut visited = false;
+        loop {
+            if visited {
+                if
+            }
+        }
+
+        paths
+    }
+    */
+
     /// push a taint to the graph
     pub fn push(&mut self, cursor: Cursor<'a>, vertex: Vertex<'a>) {
         println!("{:?}", vertex.assign);
         // if theres already a vertex at this node, add another
-        if let Some(mut verts) = self.nodes.get_mut(&cursor) {
+        if let Some(verts) = self.nodes.get_mut(&cursor) {
             verts.push(vertex.clone());
         } else {
             // otherwise insert
@@ -129,7 +148,6 @@ impl<'a> Graph<'a> {
             }
         } else {
             // this just happens on sources, we can polish later
-            println!("WARNING: grapher is not playing well with analyzer :(");
             println!("{:?}", taint);
             println!("{:?}", vertex.assign);
         }
