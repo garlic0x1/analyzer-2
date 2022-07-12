@@ -2,23 +2,24 @@ use std::collections::HashMap;
 
 // a set of rules to alert for
 pub struct Rules {
-    pub sources: Vec<Source>,
+    pub sinks: HashMap<String, Sink>,
 }
 
 pub struct Source {
     pub name: String,
-    // sinks this source is dangerous in
-    pub sinks: Vec<Sink>,
 }
 
 pub struct Sink {
     name: String,
     // specify which args are dangerous
-    args: Vec<u32>,
+    // all are dangerous if None
+    args: Option<Vec<u32>>,
     // funcs that make sink safe
-    sanitizers: Vec<Sanitizer>,
+    sanitizers: HashMap<String, Sanitizer>,
     // funcs that make sink dangerous
     waypoints: Vec<Waypoint>,
+    // sources that make the sink vuln
+    sources: Vec<Source>,
 }
 
 struct Waypoint {
@@ -36,10 +37,7 @@ struct Sanitizer {
 impl Rules {
     pub fn new(data_file: &str) -> Self {
         Self {
-            sources: vec![Source {
-                name: "_GET".to_string(),
-                sinks: Vec::new(),
-            }],
+            sinks: HashMap::new(),
         }
     }
 
