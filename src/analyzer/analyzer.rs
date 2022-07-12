@@ -64,21 +64,22 @@ impl<'a> Analyzer<'a> {
                     "variable_name" => {
                         // check if in left of assignment and return
                         if let Some(s) = cur.raw_cursor().field_name() {
-                            if s == "left" {
-                                return Breaker::Continue;
+                            if s != "left" {
+                                // check for taint and trace
+                                if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone()))
+                                {
+                                    if self.trace(cur, t) {
+                                        returns = true;
+                                    }
+                                }
                             }
                         }
 
-                        // check for taint and trace
-                        if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
-                            if self.trace(cur, t) {
-                                returns = true;
-                            }
-                        }
                         Breaker::Continue
                     }
                     // do not crawl into these node types
                     "function_definition" => Breaker::Pass,
+                    // push context
                     "if_statement" => {
                         self.context
                             .push(Context::new(cur.kind().to_string(), cur.kind().to_string()));
@@ -119,17 +120,8 @@ impl<'a> Analyzer<'a> {
             match cur.kind() {
                 "return_statement" => {
                     let assign = Taint::new_return(cur.clone());
-                    self.taints.push(assign.clone());
                     path.push(cur.clone());
-                    self.graph.push(
-                        cur.clone(),
-                        Vertex::new(
-                            source.clone(),
-                            self.context.clone(),
-                            Some(assign),
-                            path.clone(),
-                        ),
-                    );
+                    self.push_taint(cur.clone(), source.clone(), assign.clone(), path.clone());
                     has_return = true;
                     push_path = false;
                     false
@@ -142,17 +134,8 @@ impl<'a> Analyzer<'a> {
                 }
                 "assignment_expression" => {
                     let assign = Taint::new_variable(cur.clone());
-                    self.taints.push(assign.clone());
                     path.push(cur.clone());
-                    self.graph.push(
-                        cur.clone(),
-                        Vertex::new(
-                            source.clone(),
-                            self.context.clone(),
-                            Some(assign),
-                            path.clone(),
-                        ),
-                    );
+                    self.push_taint(cur.clone(), source.clone(), assign.clone(), path.clone());
                     push_path = false;
                     false
                 }
@@ -171,20 +154,17 @@ impl<'a> Analyzer<'a> {
 
                         println!("{:?}", param_cur.name());
                         let param_taint = Taint::new_param(param_cur.clone());
+                        path.push(cur.clone());
 
                         //push
-                        self.taints.push(param_taint.clone());
-                        path.push(cur.clone());
-                        self.graph.push(
+                        self.push_taint(
                             cur.clone(),
-                            Vertex::new(
-                                source.clone(),
-                                self.context.clone(),
-                                Some(param_taint.clone()),
-                                path.clone(),
-                            ),
+                            source.clone(),
+                            param_taint.clone,
+                            path.clone(),
                         );
 
+                        // traverse and see if it has tainted return
                         cont = self.traverse(resolved.cursor());
 
                         //pop
@@ -219,5 +199,18 @@ impl<'a> Analyzer<'a> {
         }
 
         has_return
+    }
+
+    fn push_taint(&mut self, cur: Cursor<'a>, source: Taint, assign: Taint, path: Vec<Cursor<'a>>) {
+        self.taints.push(assign.clone());
+        self.graph.push(
+            cur.clone(),
+            Vertex::new(
+                source.clone(),
+                self.context.clone(),
+                Some(assign),
+                path.clone(),
+            ),
+        );
     }
 }
