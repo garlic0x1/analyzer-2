@@ -71,7 +71,7 @@ impl<'a> Analyzer<'a> {
 
                         // check for taint and trace
                         if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
-                            if self.trace(cur, t.kind) {
+                            if self.trace(cur, t) {
                                 returns = true;
                             }
                         }
@@ -89,8 +89,8 @@ impl<'a> Analyzer<'a> {
             } else {
                 match cur.kind() {
                     "function_call_expression" => {
-                        if self.taints.returns().len() > 0 {
-                            if self.trace(cur, TaintKind::Return) {
+                        for t in self.taints.returns().iter() {
+                            if self.trace(cur.clone(), t.clone()) {
                                 returns = true;
                             }
                         }
@@ -110,16 +110,28 @@ impl<'a> Analyzer<'a> {
     }
 
     /// trace taints up the tree
-    fn trace(&mut self, cursor: Cursor<'a>, kind: TaintKind) -> bool {
+    fn trace(&mut self, cursor: Cursor<'a>, source: Taint) -> bool {
         let mut path = Vec::new();
-        let source = Taint::new(cursor.clone(), kind);
+        let mut has_return = false;
         let mut push_path = false;
-        let mut returns = Vec::new();
         let mut index: usize = 0;
         let mut closure = |cur: Cursor<'a>| -> bool {
             match cur.kind() {
                 "return_statement" => {
-                    returns.push(Taint::new_return(cur.clone()));
+                    let assign = Taint::new_return(cur.clone());
+                    self.taints.push(assign.clone());
+                    path.push(cur.clone());
+                    self.graph.push(
+                        cur.clone(),
+                        Vertex::new(
+                            source.clone(),
+                            self.context.clone(),
+                            Some(assign),
+                            path.clone(),
+                        ),
+                    );
+                    has_return = true;
+                    push_path = false;
                     false
                 }
                 "expression_statement" => false,
@@ -179,11 +191,20 @@ impl<'a> Analyzer<'a> {
                         self.taints.clear_scope(&Scope::new(param_cur.clone()));
                         self.graph.clear_scope(&Scope::new(param_cur.clone()));
                         self.context.pop();
+
+                        if cont {
+                            for ret in self.taints.returns() {
+                                self.trace(cur.clone(), ret);
+                            }
+                        }
+                        self.taints.clear_returns();
+                        self.graph.clear_returns();
+                        false
                     } else {
                         path.push(cur);
                         push_path = true;
+                        true
                     }
-                    cont
                 }
                 _ => true,
             }
@@ -197,6 +218,6 @@ impl<'a> Analyzer<'a> {
             }
         }
 
-        returns.len() > 0
+        has_return
     }
 }

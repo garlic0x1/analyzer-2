@@ -18,10 +18,13 @@ pub struct Taint {
 
 impl Taint {
     pub fn new(cursor: Cursor, kind: TaintKind) -> Self {
-        Self {
-            kind,
-            name: cursor.name().expect("unnamed taint"),
-            scope: Scope::new(cursor),
+        match kind {
+            TaintKind::Return => Taint::new_variable(cursor),
+            _ => Self {
+                kind,
+                name: cursor.name().expect("unnamed taint"),
+                scope: Scope::new(cursor),
+            },
         }
     }
 
@@ -44,8 +47,11 @@ impl Taint {
     pub fn new_return(cursor: Cursor) -> Self {
         Self {
             kind: TaintKind::Return,
-            name: Scope::new(cursor.clone()).function.unwrap_or_default(),
-            scope: Scope::new(cursor.clone()),
+            name: format!(
+                "return {}",
+                Scope::new(cursor.clone()).function.unwrap_or_default()
+            ),
+            scope: Scope::new_global(),
         }
     }
 

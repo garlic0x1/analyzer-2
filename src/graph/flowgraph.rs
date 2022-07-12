@@ -75,8 +75,17 @@ impl<'a> Graph<'a> {
         }
     }
 
+    pub fn clear_returns(&mut self) {
+        for (t, v) in self.leaves.iter_mut() {
+            if t.kind == TaintKind::Return {
+                *v = Vec::new();
+            }
+        }
+    }
+
     /// push a taint to the graph
     pub fn push(&mut self, cursor: Cursor<'a>, vertex: Vertex<'a>) {
+        println!("{:?}", vertex.assign);
         // if theres already a vertex at this node, add another
         if let Some(mut verts) = self.nodes.get_mut(&cursor) {
             verts.push(vertex.clone());
@@ -110,13 +119,15 @@ impl<'a> Graph<'a> {
     fn add_edges(&mut self, cursor: Cursor<'a>) {
         let vertex = self.nodes.get_mut(&cursor).unwrap().last_mut().unwrap(); // we know this wont have an error since we just inserted to nodes
         let taint = &vertex.source;
+
         if let Some(leaves) = self.leaves.get(&taint) {
             for leaf in leaves.iter() {
                 vertex.parents.push(leaf.clone());
             }
         } else {
+            // this just happens on sources, we can polish later
             println!("WARNING: grapher is not playing well with analyzer :(");
-            println!("{}", cursor.to_string());
+            println!("{:?}", taint);
         }
     }
 }
