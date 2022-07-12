@@ -1,143 +1,99 @@
 use crate::analyzer::taint::*;
-use daggy::Dag;
+use crate::tree::cursor::*;
+use daggy::*;
 use std::collections::HashMap;
-use std::fmt;
-
-#[derive(Debug, Clone)]
-struct Leaf {
-    node: daggy::NodeIndex,
-    context_stack: Vec<Context>,
-}
-
-pub struct Graph {
-    dag: Dag<Vertex, Arc>,
-    // last node that modified a taint
-    leaves: HashMap<Taint, Vec<Leaf>>,
-    last_resolved: Option<daggy::NodeIndex>,
-}
 
 #[derive(Clone)]
-pub enum Vertex {
-    Source {
-        tainting: Taint,
-        context_stack: Vec<Context>,
-    },
-    Param {
-        tainting: Taint,
-        context_stack: Vec<Context>,
-    },
-    Assignment {
-        kind: String,
-        parent_taint: Taint,
-        tainting: Taint,
-        path: Vec<PathNode>,
-        context_stack: Vec<Context>,
-    },
-    Resolved {
-        parent_taint: Taint,
-        name: String,
-        path: Vec<PathNode>,
-        context_stack: Vec<Context>,
-    },
-    Unresolved {
-        parent_taint: Taint,
-        name: String,
-        path: Vec<PathNode>,
-        context_stack: Vec<Context>,
-    },
-    Return {
-        parent_taint: Taint,
-        tainting: Taint,
-        path: Vec<PathNode>,
-        context_stack: Vec<Context>,
-    },
+pub enum Assign<'a> {
+    Taint { assign: Taint },
+    Unresolved { cursor: Cursor<'a> },
 }
 
-impl fmt::Debug for Vertex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'a> std::fmt::Debug for Assign<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::new();
         match self {
-            Self::Param { tainting, .. } => {
-                s.push('$');
-                s.push_str(&tainting.name);
+            Assign::Taint { assign } => {
+                s.push_str(&format!("{:?}", assign));
             }
-            Self::Resolved {
-                parent_taint, path, ..
-            } => {
-                for n in path.iter().rev() {
-                    s.push_str(format!("{:?} <- ", n).as_str());
-                }
-                s.push_str(format!("{}", parent_taint.name).as_str());
-            }
-            Self::Source { tainting, .. } => {
-                s.push('$');
-                s.push_str(&tainting.name);
-            }
-            Self::Assignment {
-                parent_taint,
-                tainting,
-                path,
-                ..
-            } => {
-                s.push_str(format!("Assign {}", tainting.name).as_str());
-                for n in path.iter().rev() {
-                    s.push_str(format!(" <- {:?}", n).as_str());
-                }
-                s.push_str(format!(" <- {}", parent_taint.name).as_str());
-            }
-            Self::Unresolved {
-                parent_taint, path, ..
-            } => {
-                for n in path.iter().rev() {
-                    s.push_str(format!("{:?} <- ", n).as_str());
-                }
-                s.push_str(format!("{}", parent_taint.name).as_str());
-            }
-            Self::Return {
-                parent_taint,
-                tainting,
-                path,
-                context_stack,
-            } => {
-                s.push_str(format!("Return ").as_str());
-                for n in path.iter().rev() {
-                    s.push_str(format!("{:?} <- ", n).as_str());
-                }
-                s.push_str(format!("{}", parent_taint.name).as_str());
+            Assign::Unresolved { cursor } => {
+                s.push_str(&format!("{:?}", cursor.name()));
             }
         }
         write!(f, "{}", s)
     }
 }
 
-impl fmt::Debug for Arc {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(s) = self.context_stack.get(0) {
-            write!(f, "{}", s.kind)
-        } else {
-            write!(f, "")
+#[derive(Clone)]
+pub struct Vertex<'a> {
+    pub source: Taint,
+    pub context: ContextStack,
+    pub assign: Option<Taint>,
+    pub path: Vec<Cursor<'a>>,
+}
+
+impl<'a> std::fmt::Debug for Vertex<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        s.push_str(&self.source.name);
+        for item in self.path.iter() {
+            s.push_str(" -> ");
+            s.push_str(&item.name().unwrap());
+        }
+
+        s.push_str(&format!("{:?}", self.assign));
+
+        // if let Some(t) = &self.assign {
+        //     s.push_str(" -> ");
+        //     s.push_str(&t.name);
+        // }
+        write!(f, "{}", s)
+    }
+}
+
+impl<'a> Vertex<'a> {
+    pub fn new(
+        source: Taint,
+        context: ContextStack,
+        assign: Assign<'a>,
+        path: Vec<Cursor<'a>>,
+    ) -> Self {
+        Self {
+            source,
+            context,
+            assign,
+            path,
+        }
+    }
+
+    pub fn new_source(source: Taint) -> Self {
+        Self {
+            source: source.clone(),
+            context: ContextStack::new(),
+            assign: Assign::Taint { assign: source },
+            path: Vec::new(),
+        }
+    }
+    pub fn new_param(source: Taint, assign: Assign<'a>) -> Self {
+        Self {
+            source,
+            context: ContextStack::new(),
+            assign,
+            path: Vec::new(),
         }
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum PathNode {
-    Resolved { name: String },
-    Unresolved { name: String },
+pub struct Graph<'a> {
+    dag: Dag<Vertex<'a>, ContextStack>,
+    taint_leaves: HashMap<Taint, HashMap<ContextStack, NodeIndex>>,
 }
 
-#[derive(Clone)]
-pub struct Arc {
-    // path of hooks, conditionals, and loops
-    pub context_stack: Vec<Context>,
-}
-
-impl Graph {
+impl<'a> Graph<'a> {
     pub fn new() -> Self {
         Self {
             dag: Dag::new(),
-            leaves: HashMap::new(),
-            last_resolved: None,
+            taint_leaves: HashMap::new(),
         }
     }
 
@@ -146,190 +102,78 @@ impl Graph {
         format!("{:?}", dot)
     }
 
-    pub fn has_return(&self, taint: &Taint) -> bool {
-        self.leaves.contains_key(taint)
+    pub fn clear_taint(&mut self, taint: &Taint) {
+        self.taint_leaves.remove(taint);
     }
 
-    pub fn clear_return(&mut self, taint: &Taint) {
-        if taint.kind == "return" {
-            self.leaves.remove(taint);
+    pub fn clear_scope(&mut self, scope: &Scope) {
+        for (t, l) in self.taint_leaves.iter_mut() {
+            if t.scope == *scope {
+                *l = HashMap::new();
+            }
         }
     }
 
-    pub fn push(&mut self, vertex: Vertex) {
+    pub fn push(&mut self, vertex: Vertex<'a>) {
         let id = self.dag.add_node(vertex.clone());
+        self.connect_parents(&id, &vertex);
 
-        match vertex {
-            Vertex::Assignment {
-                parent_taint,
-                tainting,
-                context_stack,
-                ..
-            } => {
-                // add edges
-                for leaf in self.leaves.get(&parent_taint).unwrap() {
-                    println!("{:?}", leaf.clone());
-                    _ = self.dag.add_edge(
-                        leaf.node,
-                        id,
-                        Arc {
-                            context_stack: context_stack.clone(),
-                        },
-                    );
-                }
-
-                if self.leaves.contains_key(&tainting) {
-                    let leaf = self.leaves.get(&tainting).unwrap();
-                    let mut newleaf = Vec::new();
-                    for v in leaf.iter() {
-                        if v.context_stack.len() > context_stack.len()
-                            && &v.context_stack[0..context_stack.len()] == context_stack.as_slice()
-                        {
-                            // old leaf is subcontext, remove it
-                            println!(
-                                "prune old stack is longer and equal {:?} -> {:?}",
-                                v.context_stack, context_stack
-                            );
-                        } else if v.context_stack == context_stack {
-                            println!("prune old stack is equal");
-                        } else {
-                            newleaf.push(v.clone());
+        match vertex.clone().assign {
+            // modify leaves
+            Assign::Taint { assign } => {
+                println!("assign{:?}", vertex.clone());
+                if let Some(leaves) = self.taint_leaves.get_mut(&assign) {
+                    for (ctx, _) in leaves.clone().iter() {
+                        if vertex.context.contains(&ctx) {
+                            leaves.remove(&ctx);
                         }
                     }
-                    newleaf.push(Leaf {
-                        node: id,
-                        context_stack: context_stack,
-                    });
-                    self.leaves.insert(tainting, newleaf);
+                    leaves.insert(vertex.context, id);
                 } else {
-                    self.leaves.insert(
-                        tainting,
-                        vec![Leaf {
-                            node: id,
-                            context_stack: context_stack,
-                        }],
-                    );
+                    let mut newmap = HashMap::new();
+                    newmap.insert(vertex.context, id);
+                    self.taint_leaves.insert(assign, newmap);
                 }
             }
-            Vertex::Param {
-                tainting,
-                context_stack,
-                ..
-            } => {
-                let name = tainting.clone().scope.function.unwrap();
-                self.dag.add_edge(
-                    self.last_resolved.expect("no resolved?"),
-                    id,
-                    Arc {
-                        context_stack: context_stack.clone(),
-                    },
-                );
-                if self.leaves.contains_key(&tainting) {
-                    let leaf = self.leaves.get_mut(&tainting).unwrap();
-                    leaf.push(Leaf {
-                        node: id,
-                        context_stack: context_stack,
-                    });
-                } else {
-                    self.leaves.insert(
-                        tainting,
-                        vec![Leaf {
-                            node: id,
-                            context_stack: context_stack,
-                        }],
-                    );
-                }
-            }
-            Vertex::Source {
-                tainting,
-                context_stack,
-                ..
-            } => {
-                if self.leaves.contains_key(&tainting) {
-                    let leaf = self.leaves.get_mut(&tainting).unwrap();
-                    leaf.push(Leaf {
-                        node: id,
-                        context_stack: context_stack,
-                    });
-                } else {
-                    self.leaves.insert(
-                        tainting,
-                        vec![Leaf {
-                            node: id,
-                            context_stack: context_stack,
-                        }],
-                    );
-                }
-            }
-            Vertex::Unresolved {
-                parent_taint,
-                context_stack,
-                ..
-            } => {
-                // add edges
-                for leaf in self.leaves.get(&parent_taint).unwrap() {
-                    _ = self.dag.add_edge(
-                        leaf.node,
-                        id,
-                        Arc {
-                            context_stack: context_stack.clone(),
-                        },
-                    );
-                }
-            }
-            Vertex::Resolved {
-                parent_taint,
-                name,
-                context_stack,
-                ..
-            } => {
-                self.last_resolved = Some(id.clone());
-                // add edges
-                for leaf in self.leaves.get(&parent_taint).unwrap() {
-                    _ = self.dag.add_edge(
-                        leaf.node,
-                        id,
-                        Arc {
-                            context_stack: context_stack.clone(),
-                        },
-                    );
-                }
-            }
-            Vertex::Return {
-                parent_taint,
-                tainting,
-                path,
-                context_stack,
-            } => {
-                println!("pushing Return vertex to graph {:?}", tainting.clone());
-                // add edges
-                for leaf in self.leaves.get(&parent_taint).unwrap() {
-                    _ = self.dag.add_edge(
-                        leaf.node,
-                        id,
-                        Arc {
-                            context_stack: context_stack.clone(),
-                        },
-                    );
-                }
+            // dont modify leaves
+            Assign::Unresolved { cursor } => {}
+        }
+    }
 
-                if self.leaves.contains_key(&tainting) {
-                    let leaf = self.leaves.get_mut(&tainting).unwrap();
-                    leaf.push(Leaf {
-                        node: id,
-                        context_stack: context_stack,
-                    });
+    fn connect_parents(&mut self, id: &NodeIndex, vertex: &Vertex<'a>) {
+        match &vertex.assign {
+            Assign::Taint { assign } => match assign.kind {
+                // add source
+                TaintKind::Variable | TaintKind::Source | TaintKind::Param => {
+                    if !self.taint_leaves.contains_key(&vertex.source.clone()) {
+                        let new_leaf =
+                            Vertex::new_param(vertex.source.clone(), vertex.assign.clone());
+                        let leaf_id = self.dag.add_node(new_leaf);
+                        let mut new_map = HashMap::new();
+                        new_map.insert(vertex.context.clone(), leaf_id);
+                        println!("inserted leaf");
+                        self.taint_leaves.insert(vertex.source.clone(), new_map);
+                    }
+                    for (_, leaf) in self.taint_leaves.get(&vertex.source).unwrap().iter() {
+                        _ = self
+                            .dag
+                            .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
+                    }
+                }
+                _ => (),
+            },
+            // shouldnt need to add source, so assume there are leaves but still handle errors
+            Assign::Unresolved { cursor } => {
+                if let Some(leaves) = self.taint_leaves.get(&vertex.source) {
+                    for (_, leaf) in leaves.iter() {
+                        _ = self
+                            .dag
+                            .add_edge(leaf.clone(), id.clone(), vertex.context.clone());
+                    }
                 } else {
-                    self.leaves.insert(
-                        tainting,
-                        vec![Leaf {
-                            node: id,
-                            context_stack: context_stack,
-                        }],
-                    );
+                    println!("unexpected behavior",);
                 }
             }
-            _ => (),
         }
     }
 }
