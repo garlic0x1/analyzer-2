@@ -4,11 +4,20 @@ use tree_sitter::*;
 pub struct File<'a> {
     name: String,
     source: &'a str,
-    tree: &'a Tree,
+    tree: Tree,
 }
 
 impl<'a> File<'a> {
-    pub fn new(name: String, tree: &'a Tree, source: &'a str) -> Self {
+    pub fn new(name: String, source: &'a str) -> Self {
+        let mut parser = Parser::new();
+        parser
+            .set_language(tree_sitter_php::language())
+            .expect("Error loading PHP parsing support");
+        let tree = parser.parse(&source, None).unwrap();
+        File::from_tree(name, tree, source)
+    }
+
+    pub fn from_tree(name: String, tree: Tree, source: &'a str) -> Self {
         Self { name, source, tree }
     }
 
@@ -20,7 +29,7 @@ impl<'a> File<'a> {
         self.source
     }
 
-    pub fn raw_cursor(&self) -> TreeCursor<'a> {
+    pub fn raw_cursor(&self) -> TreeCursor {
         self.tree.walk()
     }
 

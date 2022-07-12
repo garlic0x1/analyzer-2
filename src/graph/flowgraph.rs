@@ -123,7 +123,6 @@ impl<'a> Graph<'a> {
 
     /// push a taint to the graph
     pub fn push(&mut self, cursor: Cursor<'a>, vertex: Vertex<'a>) {
-        println!("{:?}", vertex.assign);
         // if theres already a vertex at this node, add another
         if let Some(verts) = self.nodes.get_mut(&cursor) {
             verts.push(vertex.clone());
@@ -165,7 +164,6 @@ impl<'a> Graph<'a> {
         } else {
             // this just happens on sources, we can polish later
             println!("{:?}", taint);
-            println!("{:?}", vertex.assign);
         }
     }
 }

@@ -41,7 +41,7 @@ impl<'a> Analyzer<'a> {
 
     /// first resolves names
     /// then begins traversal
-    pub fn analyze(&mut self) -> String {
+    pub fn analyze(&mut self) {
         for file in self.files.iter() {
             let cur = Cursor::from_file(file);
             self.resolved.extend(cur.resolve());
@@ -50,13 +50,13 @@ impl<'a> Analyzer<'a> {
         self.traverse(Cursor::from_file(
             self.files.get(0).expect("no files provided"),
         ));
-
-        self.graph.dump()
     }
 
+    /// returns graph ( you must run analyze() first to populate it )
     pub fn graph(&'a self) -> &'a Graph<'a> {
         &self.graph
     }
+
     /// traverse the program, looking for taints to trace, and following program flow
     /// Optionally returns a taint with the function
     fn traverse(&mut self, cursor: Cursor<'a>) -> bool {
@@ -150,12 +150,10 @@ impl<'a> Analyzer<'a> {
                             resolved.cursor().name().unwrap(),
                         ));
                         let params = resolved.parameters();
-                        println!("{:?}", params.len());
                         let param_cur = params
                             .get(index)
                             .expect("unknown index (didnt pass through argument)");
 
-                        println!("{:?}", param_cur.name());
                         let param_taint = Taint::new_param(param_cur.clone());
                         path.push(cur.clone());
 
@@ -205,7 +203,6 @@ impl<'a> Analyzer<'a> {
     }
 
     fn push_taint(&mut self, cur: Cursor<'a>, source: Taint, assign: Taint, path: Vec<Cursor<'a>>) {
-        println!("@@@");
         self.taints.push(assign.clone());
         self.graph.push(
             cur.clone(),

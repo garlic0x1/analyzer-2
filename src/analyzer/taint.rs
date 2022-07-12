@@ -85,7 +85,7 @@ impl TaintList {
             if t != taint {
                 newvec.push(t.clone());
             } else {
-                println!("removing {:?}", t);
+                //println!("removing {:?}", t);
             }
         }
         self.vec = newvec;
@@ -145,7 +145,7 @@ impl TaintList {
             if t.kind != TaintKind::Return {
                 newvec.push(t.clone());
             } else {
-                println!("removing {:?}", t);
+                //println!("removing {:?}", t);
             }
         }
         self.vec = newvec;
