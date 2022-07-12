@@ -126,8 +126,8 @@ impl<'a> Graph<'a> {
             }
         } else {
             // this just happens on sources, we can polish later
-            println!("WARNING: grapher is not playing well with analyzer :(");
-            println!("{:?}", taint);
+            //println!("WARNING: grapher is not playing well with analyzer :(");
+            //println!("{:?}", taint);
         }
     }
 }
