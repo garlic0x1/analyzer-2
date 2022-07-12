@@ -166,7 +166,7 @@ impl Scope {
 
         let mut closure = |cur: Cursor| -> bool {
             match cur.kind() {
-                "function_definition" => {
+                "method_declaration" | "function_definition" => {
                     s.function = cur.name();
                 }
                 _ => (),

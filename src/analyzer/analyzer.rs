@@ -78,7 +78,7 @@ impl<'a> Analyzer<'a> {
                         Breaker::Continue
                     }
                     // do not crawl into these node types
-                    "function_definition" => Breaker::Pass,
+                    "function_definition" | "method_declaration" => Breaker::Pass,
                     // push context
                     "if_statement" => {
                         self.context
@@ -89,7 +89,7 @@ impl<'a> Analyzer<'a> {
                 }
             } else {
                 match cur.kind() {
-                    "function_call_expression" => {
+                    "function_call_expression" | "member_call_expression" => {
                         for t in self.taints.returns().iter() {
                             if self.trace(cur.clone(), t.clone()) {
                                 returns = true;
@@ -139,7 +139,7 @@ impl<'a> Analyzer<'a> {
                     push_path = false;
                     false
                 }
-                "function_call_expression" => {
+                "function_call_expression" | "member_call_expression" => {
                     let mut cont = true;
                     if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
                         self.context.push(Context::new(

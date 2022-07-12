@@ -45,7 +45,10 @@ impl<'a> Graph<'a> {
         let mut s = format!("digraph {{\n");
         let mut i = 0;
         for (k, v) in self.nodes.iter() {
-            s.push_str(&format!("\t{i} [ label = \"{}\" ]\n", k.to_string()));
+            s.push_str(&format!(
+                "\t{i} [ label = \"{}\" ]\n",
+                k.to_string().replace("\"", "\\\"")
+            ));
 
             for vert in v.iter() {
                 for c in vert.parents.iter() {
@@ -126,8 +129,9 @@ impl<'a> Graph<'a> {
             }
         } else {
             // this just happens on sources, we can polish later
-            //println!("WARNING: grapher is not playing well with analyzer :(");
-            //println!("{:?}", taint);
+            println!("WARNING: grapher is not playing well with analyzer :(");
+            println!("{:?}", taint);
+            println!("{:?}", vertex.assign);
         }
     }
 }

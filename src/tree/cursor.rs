@@ -88,6 +88,17 @@ impl<'a> Cursor<'a> {
         }
         let mut name = String::new();
 
+        {
+            // hacky fix because depth first incorrect for method calls
+            let mut cur = self.clone();
+            cur.goto_first_child();
+            while cur.goto_next_sibling() {
+                if cur.kind() == "name" {
+                    return Some(cur.to_string());
+                }
+            }
+        }
+
         // create a mutable closure, and capture the string to mutate
         let mut enter_node = |cur: Self, entering: bool| -> Breaker {
             if entering {
@@ -129,9 +140,10 @@ impl<'a> Cursor<'a> {
                             list.insert(name, Resolved::new_function(cur));
                         }
                     }
-                    "method_definition" => {
+                    "method_declaration" => {
                         if let Some(name) = cur.name() {
                             // add a resolved function
+                            list.insert(name, Resolved::new_function(cur));
                         }
                     }
                     "class_definition" => {
