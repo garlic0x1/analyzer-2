@@ -4,10 +4,11 @@ use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Vertex<'a> {
-    pub source: Taint,
-    pub context: ContextStack,
-    pub assign: Option<Taint>,
-    pub path: Vec<Cursor<'a>>,
+    source: Taint,
+    context: ContextStack,
+    assign: Option<Taint>,
+    path: Vec<Cursor<'a>>,
+    parents: Vec<Cursor<'a>>,
 }
 
 impl<'a> Vertex<'a> {
@@ -22,14 +23,13 @@ impl<'a> Vertex<'a> {
             context,
             assign,
             path,
+            parents: Vec::new(),
         }
     }
 }
 
 pub struct Graph<'a> {
     nodes: HashMap<Cursor<'a>, Vec<Vertex<'a>>>,
-    // since we build working down, key is child and value is parents
-    edges: HashMap<Cursor<'a>, Vec<Cursor<'a>>>,
     leaves: HashMap<Taint, Vec<Cursor<'a>>>,
 }
 
@@ -37,17 +37,31 @@ impl<'a> Graph<'a> {
     pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
-            edges: HashMap::new(),
             leaves: HashMap::new(),
         }
     }
 
     pub fn dump(&self) -> String {
-        let s = format!("digraph {{\n");
+        let mut s = format!("digraph {{\n");
+        let mut i = 0;
         for (k, v) in self.nodes.iter() {
-            println!("\t[{}]\n", k.to_string())
+            s.push_str(&format!("\t{i} [ label = \"{}\" ]\n", k.to_string()));
+
+            for vert in v.iter() {
+                for c in vert.parents.iter() {
+                    let mut j = 0;
+                    for (k, _) in self.nodes.iter() {
+                        if c == k {
+                            s.push_str(&format!("\t{j} -> {i} []\n"));
+                        }
+                        j += 1;
+                    }
+                }
+            }
+
+            i += 1;
         }
-        for (k, v) in self.edges.iter() {}
+        s.push('}');
         s
     }
 
@@ -94,18 +108,15 @@ impl<'a> Graph<'a> {
     }
 
     fn add_edges(&mut self, cursor: Cursor<'a>) {
-        let vertex = self.nodes.get(&cursor).unwrap(); // we know this wont have an error since we just inserted to nodes
-        let taint = &vertex.last().unwrap().source;
+        let vertex = self.nodes.get_mut(&cursor).unwrap().last_mut().unwrap(); // we know this wont have an error since we just inserted to nodes
+        let taint = &vertex.source;
         if let Some(leaves) = self.leaves.get(&taint) {
             for leaf in leaves.iter() {
-                if let Some(child) = self.edges.get_mut(&cursor) {
-                    child.push(leaf.clone());
-                } else {
-                    self.edges.insert(cursor.clone(), vec![leaf.clone()]);
-                }
+                vertex.parents.push(leaf.clone());
             }
         } else {
-            println!("WARNING: grapher is not playing well with analyzer :(")
+            println!("WARNING: grapher is not playing well with analyzer :(");
+            println!("{}", cursor.to_string());
         }
     }
 }
