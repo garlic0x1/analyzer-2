@@ -10,14 +10,14 @@ use std::collections::HashSet;
 pub struct Analyzer<'a> {
     taints: TaintList,
     context: ContextStack,
-    files: Vec<&'a File<'a>>,
+    files: Vec<&'a File>,
     resolved: HashMap<String, Resolved<'a>>,
     graph: Graph<'a>,
     hooks: HashSet<String>,
 }
 
 impl<'a> Analyzer<'a> {
-    pub fn new(files: Vec<&'a File<'a>>, rules: Rules) -> Self {
+    pub fn new(files: Vec<&'a File>, rules: Rules) -> Self {
         let mut taints = TaintList::new();
         let mut hooks = HashSet::new();
         for source in rules.sources() {
@@ -38,7 +38,7 @@ impl<'a> Analyzer<'a> {
     }
 
     /// returns a new analyzer with sources to trace
-    pub fn from_sources(files: Vec<&'a File<'a>>, sources: Vec<String>) -> Self {
+    pub fn from_sources(files: Vec<&'a File>, sources: Vec<String>) -> Self {
         let mut taints = TaintList::new();
         for source in sources {
             taints.push(Taint::new_source(source));

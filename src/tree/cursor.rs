@@ -13,7 +13,7 @@ pub enum Breaker {
 #[derive(Clone)]
 pub struct Cursor<'a> {
     cursor: TreeCursor<'a>,
-    file: &'a File<'a>,
+    file: &'a File,
 }
 
 impl<'a> Eq for Cursor<'a> {}
@@ -43,11 +43,11 @@ impl<'a> std::fmt::Debug for Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    pub fn new(cursor: TreeCursor<'a>, file: &'a File<'a>) -> Self {
+    pub fn new(cursor: TreeCursor<'a>, file: &'a File) -> Self {
         Self { cursor, file }
     }
 
-    pub fn from_file(file: &'a File<'a>) -> Self {
+    pub fn from_file(file: &'a File) -> Self {
         Self {
             cursor: file.raw_cursor(),
             file,

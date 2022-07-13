@@ -10,7 +10,7 @@ pub mod utils;
 
 fn main() {
     let source_code = std::fs::read_to_string("test0.php").expect("failed to read file");
-    let file = File::new("main".to_string(), &source_code);
+    let file = File::new("main".to_string(), source_code);
 
     // test dumper
     {

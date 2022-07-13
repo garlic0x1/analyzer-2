@@ -3,12 +3,12 @@ use crate::tree::file::*;
 use crate::tree::resolved::*;
 
 pub struct Dumper<'a> {
-    files: Vec<&'a File<'a>>,
+    files: Vec<&'a File>,
 }
 
 impl<'a> Dumper<'a> {
     /// create a dumper from a vec of files
-    pub fn new(files: Vec<&'a File<'a>>) -> Self {
+    pub fn new(files: Vec<&'a File>) -> Self {
         Self { files }
     }
 
