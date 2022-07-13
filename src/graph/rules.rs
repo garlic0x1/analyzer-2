@@ -1,3 +1,4 @@
+use crate::graph::flowgraph::*;
 use crate::tree::cursor::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -34,13 +35,26 @@ impl Rules {
         serde_yaml::from_str(&contents).expect("cant deserialize")
     }
 
-    pub fn test_path(&self, path: Vec<Cursor>) -> bool {
-        let sink_name = path.first().expect("empty path").name().unwrap();
+    pub fn test_path(&self, path: Vec<Vertex>) -> bool {
+        let sink_name = path
+            .clone()
+            .first()
+            .expect("empty path")
+            .path
+            .first()
+            .unwrap()
+            .name()
+            .unwrap();
+
+        println!("sink name {}", sink_name);
+
         if let Some(sink) = self.sinks.get(&sink_name) {
-            for c in path.iter() {
-                if let Some(pname) = c.name() {
-                    if sink.sanitizers.contains_key(&pname) {
-                        return false;
+            for segment in path.iter() {
+                for c in segment.parents.iter() {
+                    if let Some(pname) = c.name() {
+                        if sink.sanitizers.contains_key(&pname) {
+                            return false;
+                        }
                     }
                 }
             }

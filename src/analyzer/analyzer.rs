@@ -193,9 +193,9 @@ impl<'a> Analyzer<'a> {
         let mut cursor = cursor;
         cursor.trace(&mut closure);
         if push_path {
-            if let Some(cur) = path.pop() {
-                let vert = Vertex::new(source, self.context.clone(), None, path);
-                self.graph.push(cur, vert);
+            if let Some(cur) = path.last() {
+                let vert = Vertex::new(source, self.context.clone(), None, path.clone());
+                self.graph.push(cur.clone(), vert);
             }
         }
 

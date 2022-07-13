@@ -7,8 +7,8 @@ pub struct Vertex<'a> {
     source: Taint,
     context: ContextStack,
     assign: Option<Taint>,
-    path: Vec<Cursor<'a>>,
-    parents: Vec<Cursor<'a>>,
+    pub path: Vec<Cursor<'a>>,
+    pub parents: Vec<Cursor<'a>>,
 }
 
 impl<'a> Vertex<'a> {
@@ -25,6 +25,14 @@ impl<'a> Vertex<'a> {
             path,
             parents: Vec::new(),
         }
+    }
+}
+
+impl<'a> std::fmt::Debug for Vertex<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self.path.last().unwrap().to_string();
+
+        write!(f, "{}", s)
     }
 }
 
@@ -86,20 +94,11 @@ impl<'a> Graph<'a> {
     }
 
     /// walk up a graph from vertex key
-    pub fn walk(&self) -> Vec<Vec<Cursor<'a>>> {
+    pub fn walk(&self) -> Vec<Vec<Vertex<'a>>> {
         let mut paths = Vec::new();
         for (k, v) in self.nodes.iter() {
             if let None = v.last().unwrap().assign {
-                let mut stack: Vec<Cursor> = vec![k.clone()];
-                stack.extend(
-                    v.first()
-                        .unwrap()
-                        .path
-                        .clone()
-                        .into_iter()
-                        .rev()
-                        .collect::<Vec<Cursor>>(),
-                );
+                let stack: Vec<Vertex> = vec![v.last().unwrap().clone()];
                 paths.extend(self.depth_first(stack.clone()));
             }
         }
@@ -108,27 +107,19 @@ impl<'a> Graph<'a> {
     }
 
     /// recursively search for paths
-    fn depth_first(&self, stack: Vec<Cursor<'a>>) -> Vec<Vec<Cursor<'a>>> {
+    fn depth_first(&self, stack: Vec<Vertex<'a>>) -> Vec<Vec<Vertex<'a>>> {
         let mut stacks = Vec::new();
         let mut stack = stack.clone();
-        if let Some(last) = stack.last() {
-            let node = self.nodes.get(last).unwrap();
-
-            for vert in node.iter() {
-                stack.extend(vert.path.clone().into_iter().rev().collect::<Vec<Cursor>>());
-                let mut counter = 0;
-                for parent in vert.parents.iter() {
-                    stack.push(parent.clone());
-                    stacks.extend(self.depth_first(stack.clone()));
-                    stack.pop();
-                    counter += 1;
-                }
-                if counter == 0 {
-                    stacks.push(stack.clone());
-                }
-                for _ in vert.path.iter() {
-                    stack.pop();
-                }
+        if let Some(vert) = stack.clone().last() {
+            let mut counter = 0;
+            for parent in vert.parents.iter() {
+                stack.push(self.nodes.get(&parent).unwrap().last().unwrap().clone());
+                stacks.extend(self.depth_first(stack.clone()));
+                stack.pop();
+                counter += 1;
+            }
+            if counter == 0 {
+                stacks.push(stack.clone());
             }
         }
         stacks
