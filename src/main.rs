@@ -1,4 +1,5 @@
 use analyzer::analyzer::*;
+use graph::rules::*;
 use tree::file::*;
 use utils::dumper::*;
 
@@ -27,4 +28,6 @@ fn main() {
     let graph = analyzer.graph();
     println!("{:?}", graph.walk());
     println!("{}", graph.dump());
+
+    let rules = Rules::from_yaml("new.yaml");
 }

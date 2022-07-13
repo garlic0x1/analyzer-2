@@ -5,7 +5,7 @@ if (false) {
 	$value = intval($input);
 }
 query($value);
-$value = $input;
+$value = $value  . "aaa";
 flag_query($value);
 
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));

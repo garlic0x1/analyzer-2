@@ -1,0 +1,8 @@
+sinks:
+  "query":
+    sources:
+      - "$_GET"
+      - "$_POST"
+    sanitizers:
+      - "json_encode"
+      - "wp_hash_password"

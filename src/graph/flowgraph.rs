@@ -91,14 +91,15 @@ impl<'a> Graph<'a> {
         for (k, v) in self.nodes.iter() {
             if let None = v.last().unwrap().assign {
                 let stack = vec![k.clone()];
-                paths.extend(self.depth_first(stack));
+                let stack = &v.last().unwrap().path;
+                paths.extend(self.depth_first(stack.clone()));
             }
         }
 
         paths
     }
 
-    // recursively search for paths
+    /// recursively search for paths
     fn depth_first(&self, stack: Vec<Cursor<'a>>) -> Vec<Vec<Cursor<'a>>> {
         let mut stacks = Vec::new();
         let mut stack = stack.clone();
@@ -107,11 +108,15 @@ impl<'a> Graph<'a> {
 
             let mut counter = 0;
             for vert in node.iter() {
+                stack.extend(vert.path.clone());
                 for parent in vert.parents.iter() {
                     stack.push(parent.clone());
                     stacks.extend(self.depth_first(stack.clone()));
                     stack.pop();
                     counter += 1;
+                }
+                for _ in vert.path.iter() {
+                    stack.pop();
                 }
             }
             if counter == 0 {
