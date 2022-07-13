@@ -8,12 +8,10 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Rules {
     // sinks and their data
-    pub sinks: HashMap<String, Sink>,
+    sinks: HashMap<String, Sink>,
     // sources just to get the analyzer started
-    pub sources: HashSet<String>,
-    // hooks to treat like function calls along with
-    // arg index of the hooked function
-    pub hooks: HashSet<String>,
+    sources: HashSet<String>,
+    hooks: HashSet<String>,
 }
 
 impl Rules {
@@ -33,6 +31,18 @@ impl Rules {
         // parse yaml/json into our structure
         let contents = std::fs::read_to_string(filename).expect("no such file");
         serde_yaml::from_str(&contents).expect("cant deserialize")
+    }
+
+    pub fn sources(&self) -> &HashSet<String> {
+        &self.sources
+    }
+
+    pub fn sinks(&self) -> &HashMap<String, Sink> {
+        &self.sinks
+    }
+
+    pub fn hooks(&self) -> &HashSet<String> {
+        &self.hooks
     }
 
     pub fn test_path(&self, path: Vec<Vertex>) -> bool {

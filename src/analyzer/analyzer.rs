@@ -1,9 +1,11 @@
 use crate::analyzer::taint::*;
 use crate::graph::flowgraph::*;
+use crate::graph::rules::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
 use crate::tree::resolved::*;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 pub struct Analyzer<'a> {
     taints: TaintList,
@@ -11,16 +13,27 @@ pub struct Analyzer<'a> {
     files: Vec<&'a File<'a>>,
     resolved: HashMap<String, Resolved<'a>>,
     graph: Graph<'a>,
+    hooks: HashSet<String>,
 }
 
 impl<'a> Analyzer<'a> {
-    pub fn new(files: Vec<&'a File<'a>>) -> Self {
+    pub fn new(files: Vec<&'a File<'a>>, rules: Rules) -> Self {
+        let mut taints = TaintList::new();
+        let mut hooks = HashSet::new();
+        for source in rules.sources() {
+            taints.push(Taint::new_source(source.to_string()));
+        }
+        for hook in rules.hooks() {
+            hooks.insert(hook.to_string());
+        }
+
         Self {
             taints: TaintList::new(),
             context: ContextStack::new(),
             files,
             resolved: HashMap::new(),
             graph: Graph::new(),
+            hooks,
         }
     }
 
@@ -30,12 +43,15 @@ impl<'a> Analyzer<'a> {
         for source in sources {
             taints.push(Taint::new_source(source));
         }
+        let hooks: HashSet<String> = vec!["add_action".to_string()].into_iter().collect();
+
         Self {
             files,
             taints,
             context: ContextStack::new(),
             resolved: HashMap::new(),
             graph: Graph::new(),
+            hooks,
         }
     }
 
@@ -98,6 +114,15 @@ impl<'a> Analyzer<'a> {
                                 returns = true;
                             }
                         }
+                        if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
+                            self.context
+                                .push(Context::new("function".to_string(), resolved.name()));
+                            println!("jumping to found function");
+                            self.traverse(resolved.cursor());
+                            self.context.pop();
+                        } else if self.hooks.contains(&cur.name().unwrap()) {
+                            self.handle_hook(cur.clone());
+                        }
                         Breaker::Continue
                     }
                     "if_statement" => {
@@ -111,6 +136,30 @@ impl<'a> Analyzer<'a> {
         let mut cursor = cursor.clone();
         cursor.traverse(&mut closure);
         returns
+    }
+
+    fn handle_hook(&mut self, cursor: Cursor<'a>) {
+        println!("handling hook at {}", cursor.to_string());
+        let mut closure = |cur: Cursor<'a>, entering: bool| -> Breaker {
+            if entering {
+                match cur.kind() {
+                    "argument" => {
+                        let name = &cur.to_string()[1..cur.to_string().len() - 1];
+                        println!("hook name {}", name);
+                        if self.resolved.contains_key(name) {
+                            self.context
+                                .push(Context::new("hook".to_string(), name.to_string()));
+                            self.context.pop();
+                            return Breaker::Break;
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            Breaker::Continue
+        };
+        let mut cursor = cursor.clone();
+        cursor.traverse(&mut closure);
     }
 
     /// trace taints up the tree

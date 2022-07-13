@@ -15,6 +15,14 @@ function test($p1, $p2) {
 	return ($p1);
 }
 
+function test1($p1, $p2) {
+	$local_var = $p2;	
+	return ($p1);
+	query($_GET[]);
+}
+
+add_action("test1");
+
 $newval = test($value, $filtered);
 $newval2 = test($value, $filtered);
 $notaint = test();
