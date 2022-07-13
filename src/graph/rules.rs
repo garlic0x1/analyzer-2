@@ -75,34 +75,25 @@ impl Rules {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Sink {
-    name: String,
     // specify which args are dangerous
     // all are dangerous if None
     args: Option<Vec<u32>>,
     // funcs that make sink safe
-    sanitizers: HashMap<String, Sanitizer>,
+    sanitizers: HashMap<String, Option<Vec<u32>>>,
     // funcs that make sink dangerous
-    waypoints: Vec<Waypoint>,
+    waypoints: Option<Vec<Waypoint>>,
     // sources that make the sink vuln
     sources: Vec<String>,
 }
 
 impl Sink {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
+    // pub fn name(&self) -> &str {
+    //     &self.name.unwrap_or_default()
+    // }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Waypoint {
-    name: String,
     // specify which args sanitize the function
-    args: Vec<u32>,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Sanitizer {
-    name: String,
-    // specify which args sanitize the function
-    args: Vec<u32>,
+    args: Option<Vec<u32>>,
 }

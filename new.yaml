@@ -2,16 +2,9 @@ sources: []
 hooks: []
 sinks:
   "query":
-    name: "query"
     sources:
       - "$_GET"
       - "$_POST"
     sanitizers:
       "json_encode":
-          name: "json_encode"
-          args: []
       "intval":
-          name: "intval"
-          args: []
-    args: []
-    waypoints: []
