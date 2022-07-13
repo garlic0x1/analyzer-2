@@ -50,7 +50,9 @@ impl Rules {
 
         if let Some(sink) = self.sinks.get(&sink_name) {
             for segment in path.iter() {
-                for c in segment.parents.iter() {
+                for c in segment.path.iter() {
+                    println!("name: {:?}", c.name());
+                    println!("keys: {:?}", sink.sanitizers);
                     if let Some(pname) = c.name() {
                         if sink.sanitizers.contains_key(&pname) {
                             return false;

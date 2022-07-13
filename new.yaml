@@ -7,8 +7,11 @@ sinks:
       - "$_GET"
       - "$_POST"
     sanitizers:
-      sanitizer:
-        name: "json_encode"
-        args: []
+      "json_encode":
+          name: "json_encode"
+          args: []
+      "intval":
+          name: "intval"
+          args: []
     args: []
     waypoints: []
