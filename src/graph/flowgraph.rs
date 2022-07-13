@@ -167,7 +167,7 @@ impl<'a> Graph<'a> {
             }
         } else {
             // this just happens on sources, we can polish later
-            println!("{:?}", taint);
+            //println!("{:?}", taint);
         }
     }
 }
