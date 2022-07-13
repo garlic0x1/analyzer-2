@@ -1,4 +1,4 @@
-use super::cursor::Cursor;
+use crate::tree::cursor::Cursor;
 use std::error::Error;
 use tree_sitter::*;
 
@@ -22,10 +22,7 @@ impl File {
         let client = reqwest::blocking::Client::builder()
             .user_agent("plugin scanner")
             .build()?;
-        let body = client.get(url).send()?.text()?;
-        println!("{}", body);
-
-        let source = body;
+        let source = client.get(url).send()?.text()?;
         let mut parser = Parser::new();
         parser
             .set_language(tree_sitter_php::language())
