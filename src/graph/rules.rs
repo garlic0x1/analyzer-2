@@ -1,6 +1,6 @@
 use crate::tree::cursor::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 // a set of rules to alert for
 
@@ -9,17 +9,17 @@ pub struct Rules {
     // sinks and their data
     pub sinks: HashMap<String, Sink>,
     // sources just to get the analyzer started
-    pub sources: Vec<String>,
+    pub sources: HashSet<String>,
     // hooks to treat like function calls along with
     // arg index of the hooked function
-    pub hooks: HashMap<String, usize>,
+    pub hooks: HashSet<String>,
 }
 
 impl Rules {
     pub fn new(
         sinks: HashMap<String, Sink>,
-        sources: Vec<String>,
-        hooks: HashMap<String, usize>,
+        sources: HashSet<String>,
+        hooks: HashSet<String>,
     ) -> Self {
         Self {
             sinks,

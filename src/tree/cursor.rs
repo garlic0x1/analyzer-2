@@ -33,7 +33,10 @@ impl<'a> Hash for Cursor<'a> {
 
 impl<'a> std::fmt::Debug for Cursor<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = self.kind();
+        let mut s = self.kind().to_string();
+        if let Some(name) = self.name() {
+            s.push_str(&name);
+        }
 
         write!(f, "{}", s)
     }

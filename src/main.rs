@@ -26,8 +26,14 @@ fn main() {
     analyzer.analyze();
     // get populated flow graph
     let graph = analyzer.graph();
-    println!("{:?}", graph.walk());
     println!("{}", graph.dump());
 
     let rules = Rules::from_yaml("new.yaml");
+    let paths = graph.walk();
+    for path in paths {
+        println!("{:?}", path);
+        if rules.test_path(path) {
+            println!("vuln");
+        }
+    }
 }

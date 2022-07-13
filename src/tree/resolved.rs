@@ -32,8 +32,8 @@ impl<'a> Resolved<'a> {
                 // create mutable closure
                 let mut enter_node = |cur: Cursor<'a>, entering: bool| -> Breaker {
                     if entering {
-                        if cur.kind() == "simple_parameter" {
-                            v.push(cur);
+                        if cur.kind() == "variable_name" {
+                            v.push(cur.clone());
                         }
                     }
                     Breaker::Continue

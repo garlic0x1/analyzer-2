@@ -90,8 +90,16 @@ impl<'a> Graph<'a> {
         let mut paths = Vec::new();
         for (k, v) in self.nodes.iter() {
             if let None = v.last().unwrap().assign {
-                let stack = vec![k.clone()];
-                let stack = &v.last().unwrap().path;
+                let mut stack: Vec<Cursor> = vec![k.clone()];
+                stack.extend(
+                    v.first()
+                        .unwrap()
+                        .path
+                        .clone()
+                        .into_iter()
+                        .rev()
+                        .collect::<Vec<Cursor>>(),
+                );
                 paths.extend(self.depth_first(stack.clone()));
             }
         }
@@ -106,21 +114,21 @@ impl<'a> Graph<'a> {
         if let Some(last) = stack.last() {
             let node = self.nodes.get(last).unwrap();
 
-            let mut counter = 0;
             for vert in node.iter() {
-                stack.extend(vert.path.clone());
+                stack.extend(vert.path.clone().into_iter().rev().collect::<Vec<Cursor>>());
+                let mut counter = 0;
                 for parent in vert.parents.iter() {
                     stack.push(parent.clone());
                     stacks.extend(self.depth_first(stack.clone()));
                     stack.pop();
                     counter += 1;
                 }
+                if counter == 0 {
+                    stacks.push(stack.clone());
+                }
                 for _ in vert.path.iter() {
                     stack.pop();
                 }
-            }
-            if counter == 0 {
-                stacks.push(stack);
             }
         }
         stacks
