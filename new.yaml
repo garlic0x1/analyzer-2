@@ -1,8 +1,14 @@
+sources: []
+hooks: {}
 sinks:
   "query":
+    name: "query"
     sources:
       - "$_GET"
       - "$_POST"
     sanitizers:
-      - "json_encode"
-      - "wp_hash_password"
+      sanitizer:
+        name: "json_encode"
+        args: []
+    args: []
+    waypoints: []
