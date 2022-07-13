@@ -9,8 +9,9 @@ pub mod tree;
 pub mod utils;
 
 fn main() {
-    let source_code = std::fs::read_to_string("test0.php").expect("failed to read file");
-    let file = File::new("main".to_string(), source_code);
+    let file =
+        File::from_url("https://plugins.svn.wordpress.org/wpw-newsletter/trunk/includes/model.php")
+            .expect("failed to download file");
 
     // test dumper
     {

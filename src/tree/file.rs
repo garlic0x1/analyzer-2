@@ -9,7 +9,7 @@ pub struct File {
 }
 
 impl File {
-    pub fn new(name: String, source: String) -> Self {
+    pub fn new(name: &str, source: String) -> Self {
         let mut parser = Parser::new();
         parser
             .set_language(tree_sitter_php::language())
@@ -18,8 +18,12 @@ impl File {
         File::from_tree(name, tree, source)
     }
 
-    pub fn from_url(url: String) -> Result<Self, Box<dyn Error>> {
-        let body = reqwest::blocking::get("https://www.rust-lang.org")?.text()?;
+    pub fn from_url(url: &str) -> Result<Self, Box<dyn Error>> {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent("plugin scanner")
+            .build()?;
+        let body = client.get(url).send()?.text()?;
+        println!("{}", body);
 
         let source = body;
         let mut parser = Parser::new();
@@ -30,8 +34,12 @@ impl File {
         Ok(File::from_tree(url, tree, source.clone()))
     }
 
-    pub fn from_tree(name: String, tree: Tree, source: String) -> Self {
-        Self { name, source, tree }
+    pub fn from_tree(name: &str, tree: Tree, source: String) -> Self {
+        Self {
+            name: name.to_string(),
+            source,
+            tree,
+        }
     }
 
     pub fn name(&self) -> String {
