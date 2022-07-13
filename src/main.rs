@@ -32,8 +32,8 @@ fn main() {
     let rules = Rules::from_yaml("new.yaml");
     let paths = graph.walk();
     for path in paths {
-        println!("VULN:");
         if rules.test_path(path.clone()) {
+            println!("VULN:");
             for vert in path.iter() {
                 println!("{:?}", vert);
             }

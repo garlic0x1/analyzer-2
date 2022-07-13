@@ -20,7 +20,7 @@ impl File {
 
     pub fn from_url(url: &str) -> Result<Self, Box<dyn Error>> {
         let client = reqwest::blocking::Client::builder()
-            .user_agent("plugin scanner")
+            .user_agent("g4r1cI's super sweet scanner")
             .build()?;
         let source = client.get(url).send()?.text()?;
         let mut parser = Parser::new();

@@ -99,7 +99,10 @@ impl<'a> Graph<'a> {
         for (k, v) in self.nodes.iter() {
             if let None = v.last().unwrap().assign {
                 let stack: Vec<Vertex> = vec![v.last().unwrap().clone()];
-                paths.extend(self.depth_first(stack.clone()));
+                let new = self.depth_first(stack.clone());
+                if true || new.len() > 0 {
+                    paths.extend(new);
+                }
             }
         }
 
@@ -118,7 +121,7 @@ impl<'a> Graph<'a> {
                 stack.pop();
                 counter += 1;
             }
-            if counter == 0 {
+            if counter == 0 && stack.len() > 0 {
                 stacks.push(stack.clone());
             }
         }
