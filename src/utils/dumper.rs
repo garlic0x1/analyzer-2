@@ -19,7 +19,12 @@ impl<'a> Dumper<'a> {
             if entering {
                 let indent = "  ".repeat(Dumper::depth(cur.clone()));
                 string.push_str(&format!("{}Kind: {}\n", indent, cur.kind()));
-                string.push_str(&format!("{}Name: {:?}\n", indent, cur.name()));
+                if let Some(field) = cur.raw_cursor().field_name() {
+                    string.push_str(&format!("{}Field: {}\n", indent, field));
+                }
+                if cur.kind() == "name" {
+                    string.push_str(&format!("{}Name: {:?}\n", indent, cur.to_string()));
+                }
             }
             Breaker::Continue
         };

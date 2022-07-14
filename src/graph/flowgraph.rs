@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[derive(Clone)]
 pub struct Vertex<'a> {
     source: Taint,
-    context: ContextStack,
+    pub context: ContextStack,
     assign: Option<Taint>,
     pub path: Vec<Cursor<'a>>,
     pub parents: Vec<Cursor<'a>>,

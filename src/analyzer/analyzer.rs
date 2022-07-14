@@ -63,9 +63,15 @@ impl<'a> Analyzer<'a> {
             self.resolved.extend(cur.resolve());
         }
 
-        self.traverse(Cursor::from_file(
-            self.files.get(0).expect("no files provided"),
-        ));
+        let mut cursors = Vec::new();
+        for file in self.files.iter() {
+            let cur = Cursor::from_file(file);
+            cursors.push(cur);
+        }
+
+        for cur in cursors {
+            self.traverse(cur);
+        }
     }
 
     /// returns graph ( you must run analyze() first to populate it )
@@ -83,7 +89,7 @@ impl<'a> Analyzer<'a> {
                     "variable_name" => {
                         // check if in left of assignment and return
                         if let Some(s) = cur.raw_cursor().field_name() {
-                            if s == "left" {
+                            if s == "left" || s == "object" {
                                 return Breaker::Continue;
                             }
                         }
@@ -109,19 +115,24 @@ impl<'a> Analyzer<'a> {
             } else {
                 match cur.kind() {
                     "function_call_expression" | "member_call_expression" => {
+                        /*
                         for t in self.taints.returns().iter() {
                             if self.trace(cur.clone(), t.clone()) {
                                 returns = true;
                             }
                         }
+                        */
                         if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
-                            self.context
-                                .push(Context::new("function".to_string(), resolved.name()));
-                            println!("jumping to found function");
-                            self.traverse(resolved.cursor());
-                            self.context.pop();
+                            if self
+                                .context
+                                .push(Context::new("function".to_string(), resolved.name()))
+                            {
+                                println!("jumping to function: {}", resolved.name());
+                                self.traverse(resolved.cursor());
+                                self.context.pop();
+                            }
                         } else if self.hooks.contains(&cur.name().unwrap()) {
-                            self.handle_hook(cur.clone());
+                            self.handle_hook(cur);
                         }
                         Breaker::Continue
                     }
@@ -144,13 +155,19 @@ impl<'a> Analyzer<'a> {
             if entering {
                 match cur.kind() {
                     "argument" => {
-                        let name = &cur.to_string()[1..cur.to_string().len() - 1];
-                        println!("hook name {}", name);
-                        if self.resolved.contains_key(name) {
-                            self.context
-                                .push(Context::new("hook".to_string(), name.to_string()));
-                            self.context.pop();
-                            return Breaker::Break;
+                        if cur.to_string().len() > 2 {
+                            let name = &cur.to_string()[1..cur.to_string().len() - 1];
+                            println!("hook name {}", name);
+                            if self.resolved.contains_key(name) {
+                                if self
+                                    .context
+                                    .push(Context::new("hook".to_string(), name.to_string()))
+                                {
+                                    self.traverse(cur.clone());
+                                    self.context.pop();
+                                }
+                                return Breaker::Break;
+                            }
                         }
                     }
                     _ => (),
@@ -192,16 +209,19 @@ impl<'a> Analyzer<'a> {
                     false
                 }
                 "function_call_expression" | "member_call_expression" => {
-                    let mut cont = true;
                     if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
-                        self.context.push(Context::new(
+                        if !self.context.push(Context::new(
                             resolved.cursor().kind().to_string(),
                             resolved.cursor().name().unwrap(),
-                        ));
+                        )) {
+                            return true;
+                        }
                         let params = resolved.parameters();
-                        let param_cur = params
-                            .get(index)
-                            .expect("unknown index (didnt pass through argument)");
+                        let param_cur = params.get(index).expect(&format!(
+                            "cant find param {} {}",
+                            cur.to_string(),
+                            source.name,
+                        ));
 
                         let param_taint = Taint::new_param(param_cur.clone());
                         path.push(cur.clone());
@@ -215,7 +235,7 @@ impl<'a> Analyzer<'a> {
                         );
 
                         // traverse and see if it has tainted return
-                        cont = self.traverse(resolved.cursor());
+                        let cont = self.traverse(resolved.cursor());
 
                         //pop
                         self.taints.clear_scope(&Scope::new(param_cur.clone()));

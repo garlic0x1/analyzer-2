@@ -2,7 +2,7 @@
 $input = unknown($_GET[0]);
 $value = $_GET;
 if (false) {
-	$value = intval($input);
+	$value = intal($input);
 }
 query($value);
 $value = $value  . "aaa";
@@ -12,6 +12,7 @@ $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
 function test($p1, $p2) {
 	$local_var = $p2;	
+	//$p1 = test($p1, $p2);
 	return ($p1);
 }
 
@@ -25,5 +26,6 @@ add_action("test1");
 
 $newval = test($value, $filtered);
 $newval2 = test($value, $filtered);
+query($newval);
 $notaint = test();
 ?>

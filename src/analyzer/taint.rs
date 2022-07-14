@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::tree::cursor::*;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
@@ -67,32 +69,26 @@ impl Taint {
 // may need to change this to a hashmap for faster lookup times
 #[derive(Debug)]
 pub struct TaintList {
-    vec: Vec<Taint>,
+    list: HashSet<Taint>,
 }
 
 impl TaintList {
     pub fn new() -> Self {
-        Self { vec: Vec::new() }
+        Self {
+            list: HashSet::new(),
+        }
     }
 
     pub fn push(&mut self, taint: Taint) {
-        self.vec.push(taint);
+        self.list.insert(taint);
     }
 
     pub fn remove(&mut self, taint: &Taint) {
-        let mut newvec = Vec::new();
-        for t in self.vec.iter() {
-            if t != taint {
-                newvec.push(t.clone());
-            } else {
-                //println!("removing {:?}", t);
-            }
-        }
-        self.vec = newvec;
+        self.list.remove(taint);
     }
 
     pub fn get(&self, taint: &Taint) -> Option<Taint> {
-        for t in self.vec.iter() {
+        for t in self.list.iter() {
             if t.name == taint.name {
                 return Some(t.clone());
             }
@@ -101,17 +97,17 @@ impl TaintList {
     }
 
     pub fn returns(&self) -> Vec<Taint> {
-        let mut newvec = Vec::new();
-        for t in self.vec.iter() {
+        let mut vec = Vec::new();
+        for t in self.list.iter() {
             if t.kind == TaintKind::Return {
-                newvec.push(t.clone());
+                vec.push(t.clone());
             }
         }
-        newvec
+        vec
     }
 
     pub fn contains(&self, taint: &Taint) -> bool {
-        for t in self.vec.iter() {
+        for t in self.list.iter() {
             // dont exhaustively match global sources
             match t.kind {
                 TaintKind::Global | TaintKind::Source | TaintKind::Return | TaintKind::Param => {
@@ -130,25 +126,11 @@ impl TaintList {
     }
 
     pub fn clear_scope(&mut self, scope: &Scope) {
-        let mut newvec = Vec::new();
-        for t in self.vec.iter() {
-            if &t.scope != scope {
-                newvec.push(t.clone());
-            }
-        }
-        self.vec = newvec;
+        self.list.retain(|sc| &sc.scope != scope);
     }
 
     pub fn clear_returns(&mut self) {
-        let mut newvec = Vec::new();
-        for t in self.vec.iter() {
-            if t.kind != TaintKind::Return {
-                newvec.push(t.clone());
-            } else {
-                //println!("removing {:?}", t);
-            }
-        }
-        self.vec = newvec;
+        self.list.retain(|sc| sc.kind != TaintKind::Return);
     }
 }
 
@@ -211,8 +193,15 @@ impl ContextStack {
         Self { stack: Vec::new() }
     }
 
-    pub fn push(&mut self, context: Context) {
+    pub fn push(&mut self, context: Context) -> bool {
+        for ctx in self.stack.iter() {
+            if ctx.eq(&context) {
+                return false;
+            }
+        }
         self.stack.push(context);
+        println!("{:?}", self.stack);
+        true
     }
 
     pub fn pop(&mut self) -> Option<Context> {

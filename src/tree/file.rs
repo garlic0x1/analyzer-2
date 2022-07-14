@@ -9,7 +9,8 @@ pub struct File {
 }
 
 impl File {
-    pub fn new(name: &str, source: String) -> Self {
+    pub fn new(name: &str) -> Self {
+        let source = std::fs::read_to_string(name).expect(&format!("no such file {}", name));
         let mut parser = Parser::new();
         parser
             .set_language(tree_sitter_php::language())
