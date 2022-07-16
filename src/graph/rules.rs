@@ -45,24 +45,14 @@ impl Rules {
         &self.hooks
     }
 
-    pub fn test_path(&self, path: Vec<Vertex>) -> bool {
-        let sink_name = path
-            .clone()
-            .first()
-            .expect("empty path")
-            .path
-            .first()
-            .unwrap()
-            .name()
-            .unwrap();
+    pub fn test_path(&self, path: &Vec<Cursor>) -> bool {
+        let sink_name = &path.first().expect("empty path").name().unwrap();
 
-        if let Some(sink) = self.sinks.get(&sink_name) {
-            for segment in path.iter() {
-                for c in segment.path.iter() {
-                    if let Some(pname) = c.name() {
-                        if sink.sanitizers.contains_key(&pname) {
-                            return false;
-                        }
+        if let Some(sink) = self.sinks.get(sink_name) {
+            for c in path.iter() {
+                if let Some(pname) = c.name() {
+                    if sink.sanitizers.contains_key(&pname) {
+                        return false;
                     }
                 }
             }

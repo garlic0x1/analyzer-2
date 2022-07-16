@@ -123,13 +123,19 @@ impl<'a> Analyzer<'a> {
                         }
                         */
                         if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
-                            if self
-                                .context
-                                .push(Context::new("function".to_string(), resolved.name()))
-                            {
-                                println!("jumping to function: {}", resolved.name());
+                            // if not recursive, jump
+                            if self.context.push(Context::new(
+                                resolved.cursor().kind().to_string(),
+                                resolved.name(),
+                            )) {
+                                println!(
+                                    "jumping to function: {}, {}",
+                                    resolved.name(),
+                                    resolved.cursor().kind()
+                                );
                                 self.traverse(resolved.cursor());
                                 self.context.pop();
+                                println!("leaving function {}", resolved.name());
                             }
                         } else if self.hooks.contains(&cur.name().unwrap()) {
                             self.handle_hook(cur);
@@ -210,12 +216,6 @@ impl<'a> Analyzer<'a> {
                 }
                 "function_call_expression" | "member_call_expression" => {
                     if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
-                        if !self.context.push(Context::new(
-                            resolved.cursor().kind().to_string(),
-                            resolved.cursor().name().unwrap(),
-                        )) {
-                            return true;
-                        }
                         let params = resolved.parameters();
                         let param_cur = params.get(index).expect(&format!(
                             "cant find param {} {}",
@@ -226,6 +226,14 @@ impl<'a> Analyzer<'a> {
                         let param_taint = Taint::new_param(param_cur.clone());
                         path.push(cur.clone());
 
+                        println!("from trace");
+                        if !self.context.push(Context::new(
+                            resolved.cursor().kind().to_string(),
+                            resolved.cursor().name().unwrap(),
+                        )) {
+                            return true;
+                        }
+
                         //push
                         self.push_taint(
                             param_cur.clone(),
@@ -233,7 +241,6 @@ impl<'a> Analyzer<'a> {
                             param_taint.clone(),
                             path.clone(),
                         );
-
                         // traverse and see if it has tainted return
                         let cont = self.traverse(resolved.cursor());
 
@@ -262,8 +269,9 @@ impl<'a> Analyzer<'a> {
         let mut cursor = cursor;
         cursor.trace(&mut closure);
         if push_path {
-            if let Some(cur) = path.last() {
-                let vert = Vertex::new(source, self.context.clone(), None, path.clone());
+            if let Some(cur) = path.clone().last() {
+                let pitem = PathItem::new(source, path);
+                let vert = Vertex::new(self.context.clone(), None, pitem);
                 self.graph.push(cur.clone(), vert);
             }
         }
@@ -273,14 +281,10 @@ impl<'a> Analyzer<'a> {
 
     fn push_taint(&mut self, cur: Cursor<'a>, source: Taint, assign: Taint, path: Vec<Cursor<'a>>) {
         self.taints.push(assign.clone());
+        let pitem = PathItem::new(source, path);
         self.graph.push(
             cur.clone(),
-            Vertex::new(
-                source.clone(),
-                self.context.clone(),
-                Some(assign),
-                path.clone(),
-            ),
+            Vertex::new(self.context.clone(), Some(assign), pitem),
         );
     }
 }

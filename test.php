@@ -1,9 +1,10 @@
 <?php
 Class Data {
-	function dangerous($param) {
+	public static function dangerous($param) {
 		$temp = unknown_filter_func($param);
 		// this does not alert because the variable is not in scope
 		print($user_input);
+		dangerous($temp);
 		return $temp;
 	}
 }

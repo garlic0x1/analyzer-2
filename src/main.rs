@@ -44,14 +44,15 @@ fn main() {
         println!("applying rules!");
         let rules = Rules::from_yaml("new.yaml");
         let paths = graph.walk();
-        for path in paths {
-            if rules.test_path(path.clone()) {
-                let filename = path.first().unwrap().path.first().unwrap().filename();
+        println!("testing paths");
+        for path in paths.iter() {
+            if rules.test_path(path) {
+                let filename = path.first().unwrap().filename();
                 println!("file: {}", filename);
                 println!("type: 'sqli'");
                 println!("path:");
                 for vert in path.iter() {
-                    println!("  - {:?}", vert);
+                    println!("  - {}", vert.to_string());
                 }
                 println!("---");
             }

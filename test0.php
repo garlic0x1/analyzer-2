@@ -12,7 +12,7 @@ $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 
 function test($p1, $p2) {
 	$local_var = $p2;	
-	//$p1 = test($p1, $p2);
+	test($p1, $p2);
 	return ($p1);
 }
 
