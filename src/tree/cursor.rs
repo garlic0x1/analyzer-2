@@ -42,26 +42,6 @@ impl<'a> std::fmt::Debug for Cursor<'a> {
     }
 }
 
-impl<'a> Iterator for Cursor<'a> {
-    type Item = Cursor<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if self.goto_first_child() || self.goto_next_sibling() {
-                continue;
-            }
-
-            loop {
-                if !self.cursor.goto_parent() {
-                    return None;
-                }
-                if self.goto_next_sibling() {
-                    break;
-                }
-            }
-        }
-    }
-}
-
 impl<'a> Cursor<'a> {
     pub fn new(cursor: TreeCursor<'a>, file: &'a File) -> Self {
         Self { cursor, file }
@@ -214,6 +194,7 @@ impl<'a> Cursor<'a> {
         let start_node = self.cursor.node().id();
         let mut visited = false;
         loop {
+            let cur = self.clone();
             if visited {
                 if self.cursor.goto_next_sibling() {
                     visited = false;
@@ -225,8 +206,8 @@ impl<'a> Cursor<'a> {
                                 if self.cursor.goto_next_sibling() {
                                     continue;
                                 } else if self.cursor.goto_parent() {
-                                    if self.cursor.node().is_named() {
-                                        handler(self.clone(), false);
+                                    if cur.raw_cursor().node().is_named() {
+                                        handler(cur, false);
                                     }
                                     if self.cursor.node().id() == start_node {
                                         break;
@@ -238,8 +219,8 @@ impl<'a> Cursor<'a> {
                         }
                     }
                 } else if self.cursor.goto_parent() {
-                    if self.cursor.node().is_named() {
-                        handler(self.clone(), false);
+                    if cur.raw_cursor().node().is_named() {
+                        handler(cur, false);
                     }
                     if self.cursor.node().id() == start_node {
                         break;

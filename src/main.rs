@@ -12,7 +12,6 @@ pub mod utils;
 fn main() {
     for line in io::stdin().lock().lines() {
         let mut files = Vec::new();
-        println!("creating files");
         for word in line.unwrap().split(' ') {
             if word.to_string().len() <= 1 {
                 continue;
@@ -28,11 +27,7 @@ fn main() {
 
         let file_refs: Vec<&File> = files.iter().map(|file| -> &File { &file }).collect();
 
-        let dumper = Dumper::new(file_refs.clone());
-        println!("{}", dumper.dump2());
-
         // create analyzer
-        println!("creating analyzer");
         let mut analyzer =
             Analyzer::from_sources(file_refs, vec!["_GET".to_string(), "_POST".to_string()]);
         // perform analysis
@@ -41,10 +36,9 @@ fn main() {
         let graph = analyzer.graph();
         println!("{}", graph.dump());
 
-        println!("applying rules!");
+        println!("---");
         let rules = Rules::from_yaml("new.yaml");
         let paths = graph.walk();
-        println!("testing paths");
         for path in paths.iter() {
             if rules.test_path(path) {
                 let filename = path.first().unwrap().filename();

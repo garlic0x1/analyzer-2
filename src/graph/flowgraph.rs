@@ -157,7 +157,6 @@ impl<'a> Graph<'a> {
         for (path, parents) in last_vert.paths().iter() {
             for parent in parents.iter() {
                 if stack.contains(parent) {
-                    println!("cyclical graph, breaking");
                     continue;
                 }
                 let parent_vert = self.nodes.get(parent).expect("no such parent");

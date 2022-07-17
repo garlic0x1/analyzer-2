@@ -8,3 +8,17 @@ sinks:
     sanitizers:
       "json_encode":
       "intval":
+  "echo_statement":
+    sources:
+      - "$_GET"
+      - "$_POST"
+    sanitizers:
+      "json_encode":
+      "intval":
+  "printf":
+    sources:
+      - "$_GET"
+      - "$_POST"
+    sanitizers:
+      "json_encode":
+      "intval":

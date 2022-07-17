@@ -12,18 +12,6 @@ impl<'a> Dumper<'a> {
         Self { files }
     }
 
-    pub fn dump2(&self) -> String {
-        let mut ret = String::new();
-        for file in self.files.iter() {
-            //file.cursor()
-            for cur in file.cursor() {
-                println!("{}", cur.kind());
-                println!("{:?}", cur.name());
-            }
-        }
-        ret
-    }
-
     /// dump the tree as a string
     pub fn dump(&self) -> String {
         let mut string = String::new();

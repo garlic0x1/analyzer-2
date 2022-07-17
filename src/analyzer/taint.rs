@@ -195,18 +195,14 @@ impl ContextStack {
 
     /// returns false if recursive
     pub fn push(&mut self, context: Context) -> bool {
-        println!("start push");
         for ctx in self.stack.iter() {
             if ctx.eq(&context) {
-                println!("recursion detected");
                 self.stack
                     .push(Context::new("".to_string(), "".to_string()));
                 return false;
             }
         }
         self.stack.push(context);
-        println!("{:?}", self.stack);
-        println!("end push");
         true
     }
 

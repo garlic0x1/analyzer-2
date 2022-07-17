@@ -128,14 +128,8 @@ impl<'a> Analyzer<'a> {
                                 resolved.cursor().kind().to_string(),
                                 resolved.name(),
                             )) {
-                                println!(
-                                    "jumping to function: {}, {}",
-                                    resolved.name(),
-                                    resolved.cursor().kind()
-                                );
                                 self.traverse(resolved.cursor());
                                 self.context.pop();
-                                println!("leaving function {}", resolved.name());
                             }
                         } else if self.hooks.contains(&cur.name().unwrap()) {
                             self.handle_hook(cur);
@@ -156,14 +150,12 @@ impl<'a> Analyzer<'a> {
     }
 
     fn handle_hook(&mut self, cursor: Cursor<'a>) {
-        println!("handling hook at {}", cursor.to_string());
         let mut closure = |cur: Cursor<'a>, entering: bool| -> Breaker {
             if entering {
                 match cur.kind() {
                     "argument" => {
                         if cur.to_string().len() > 2 {
                             let name = &cur.to_string()[1..cur.to_string().len() - 1];
-                            println!("hook name {}", name);
                             if self.resolved.contains_key(name) {
                                 if self
                                     .context
@@ -226,7 +218,6 @@ impl<'a> Analyzer<'a> {
                         let param_taint = Taint::new_param(param_cur.clone());
                         path.push(cur.clone());
 
-                        println!("from trace");
                         if !self.context.push(Context::new(
                             resolved.cursor().kind().to_string(),
                             resolved.cursor().name().unwrap(),
@@ -262,6 +253,12 @@ impl<'a> Analyzer<'a> {
                         push_path = true;
                         true
                     }
+                }
+                // special sinks
+                "echo_statement" => {
+                    path.push(cur);
+                    push_path = true;
+                    false
                 }
                 _ => true,
             }

@@ -47,8 +47,15 @@ impl Rules {
 
     pub fn test_path(&self, path: &Vec<Cursor>) -> bool {
         let sink_name = &path.first().expect("empty path").name().unwrap();
-
-        if let Some(sink) = self.sinks.get(sink_name) {
+        let &sink_kind = &path.first().expect("empty").kind();
+        let mut sink: Option<Sink> = None;
+        if let Some(nsink) = self.sinks.get(sink_name) {
+            sink = Some(nsink.clone());
+        }
+        if let Some(nsink) = self.sinks.get(sink_kind) {
+            sink = Some(nsink.clone());
+        }
+        if let Some(sink) = sink {
             for c in path.iter() {
                 if let Some(pname) = c.name() {
                     if sink.sanitizers.contains_key(&pname) {
@@ -63,7 +70,7 @@ impl Rules {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Sink {
     // specify which args are dangerous
     // all are dangerous if None
@@ -82,7 +89,7 @@ impl Sink {
     // }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Waypoint {
     // specify which args sanitize the function
     args: Option<Vec<u32>>,
