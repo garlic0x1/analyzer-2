@@ -1,10 +1,12 @@
 <?php
 Class Data {
 	public static function dangerous($param) {
-		$temp = unknown_filter_func($param);
-		// this does not alert because the variable is not in scope
-		print($user_input);
+		$temp = ($param);
+		// this should not alert because the variable is not in scope
+		printf($user_input);
+		// test recursion
 		dangerous($temp);
+		// test return
 		return $temp;
 	}
 }

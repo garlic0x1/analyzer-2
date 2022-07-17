@@ -143,6 +143,25 @@ impl<'a> Graph<'a> {
         paths
     }
 
+    pub fn verts_to_path(&'a self, vert_path: Vec<Cursor<'a>>) -> Vec<Cursor<'a>> {
+        let mut last_cur: Option<Cursor<'a>> = None;
+        let mut out_path = Vec::new();
+        for vert in vert_path.iter() {
+            if let Some(vert_cur) = last_cur {
+                let last = self.nodes.get(&vert_cur).unwrap();
+                for (path, parents) in last.paths().iter() {
+                    if parents.contains(vert) {
+                        out_path.extend(path.path.clone());
+                        break;
+                    }
+                }
+            }
+            last_cur = Some(vert.clone());
+        }
+
+        out_path
+    }
+
     pub fn walk_verts(&'a self) -> Vec<Vec<Cursor<'a>>> {
         let mut paths = Vec::new();
         for (k, v) in self.nodes.iter() {

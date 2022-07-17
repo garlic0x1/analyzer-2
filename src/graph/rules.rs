@@ -45,6 +45,19 @@ impl Rules {
         &self.hooks
     }
 
+    // pub fn test_verts(&self, verts: &Vec<Vertex>) {
+    //     let mut path = Vec::new();
+    //     let mut last_vert = Option<Vertex<'a>>;
+    //     let mut first = true;
+    //     for vert in verts.iter() {
+    //         if first {
+    //             let sink_name = vert.paths.first().expect("empty path").name().unwrap();
+    //         }
+    //         path.extend();
+    //         first = false;
+    //     }
+    // }
+
     pub fn test_path(&self, path: &Vec<Cursor>) -> bool {
         let sink_name = &path.first().expect("empty path").name().unwrap();
         let &sink_kind = &path.first().expect("empty").kind();

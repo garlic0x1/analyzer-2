@@ -169,6 +169,23 @@ impl Scope {
             class: None,
         }
     }
+
+    pub fn contains(&self, other: &Self) -> bool {
+        if let Some(_) = other.filename {
+            if self.filename == other.filename {
+                if self.class == other.class {
+                    if self.function == other.function {
+                        return true;
+                    }
+                }
+            } else {
+            }
+        } else {
+            return true;
+        }
+        eprintln!("self: {:?} \nother: {:?}", self, other);
+        false
+    }
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]

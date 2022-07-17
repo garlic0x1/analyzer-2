@@ -95,8 +95,12 @@ impl<'a> Analyzer<'a> {
                         }
                         // check for taint and trace
                         if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
-                            if self.trace(cur, t) {
-                                returns = true;
+                            let cur_scope = Scope::new(cur.clone());
+                            eprintln!("testing {:?}", t);
+                            if cur_scope.contains(&t.scope) {
+                                if self.trace(cur, t) {
+                                    returns = true;
+                                }
                             }
                         }
 

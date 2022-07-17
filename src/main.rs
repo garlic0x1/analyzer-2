@@ -41,11 +41,12 @@ fn main() {
         println!("---");
         let rules = Rules::from_yaml("new.yaml");
         eprintln!("routing");
-        let paths = graph.walk();
+        let paths = graph.walk_verts();
         //let paths = graph.walk();
         println!("{:?}", paths);
+        //let paths = graph.verts_to_path(paths);
         for path in paths.iter() {
-            if rules.test_path(path) {
+            if rules.test_path(&graph.verts_to_path(path.clone())) {
                 let filename = path.first().unwrap().filename();
                 println!("file: {}", filename);
                 println!("type: 'sqli'");

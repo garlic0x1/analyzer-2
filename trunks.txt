@@ -1,3 +1,4 @@
+http://plugins.svn.wordpress.org/caldera-forms/trunk
 http://plugins.svn.wordpress.org/real-time-validation-for-gravity-forms/trunk
 http://plugins.svn.wordpress.org/astra-sites/trunk
 http://plugins.svn.wordpress.org/media-sync/trunk
@@ -186,7 +187,6 @@ http://plugins.svn.wordpress.org/kadence-blocks/trunk
 http://plugins.svn.wordpress.org/publish-to-apple-news/trunk
 http://plugins.svn.wordpress.org/live-drafts/trunk
 http://plugins.svn.wordpress.org/showcase-visual-composer-addon/trunk
-http://plugins.svn.wordpress.org/caldera-forms/trunk
 http://plugins.svn.wordpress.org/wp-amazon-ses-smtp/trunk
 http://plugins.svn.wordpress.org/classic-editor/trunk
 http://plugins.svn.wordpress.org/social-warfare/trunk
