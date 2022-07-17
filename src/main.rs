@@ -28,8 +28,8 @@ fn main() {
 
         let file_refs: Vec<&File> = files.iter().map(|file| -> &File { &file }).collect();
 
-        // let dumper = Dumper::new(file_refs.clone());
-        // println!("{}", dumper.dump());
+        let dumper = Dumper::new(file_refs.clone());
+        println!("{}", dumper.dump2());
 
         // create analyzer
         println!("creating analyzer");

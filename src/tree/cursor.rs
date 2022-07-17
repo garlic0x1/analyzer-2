@@ -42,6 +42,26 @@ impl<'a> std::fmt::Debug for Cursor<'a> {
     }
 }
 
+impl<'a> Iterator for Cursor<'a> {
+    type Item = Cursor<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.goto_first_child() || self.goto_next_sibling() {
+                continue;
+            }
+
+            loop {
+                if !self.cursor.goto_parent() {
+                    return None;
+                }
+                if self.goto_next_sibling() {
+                    break;
+                }
+            }
+        }
+    }
+}
+
 impl<'a> Cursor<'a> {
     pub fn new(cursor: TreeCursor<'a>, file: &'a File) -> Self {
         Self { cursor, file }
