@@ -211,9 +211,6 @@ impl<'a> Cursor<'a> {
         let start_node = self.cursor.node().id();
         let mut visited = false;
         loop {
-            eprintln!("{}", self.kind());
-            eprintln!("{}", self.to_str());
-            eprintln!("{}", self.filename());
             let cur = self.clone();
             if visited {
                 if self.cursor.goto_next_sibling() {

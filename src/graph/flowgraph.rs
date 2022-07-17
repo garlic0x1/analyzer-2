@@ -143,6 +143,44 @@ impl<'a> Graph<'a> {
         paths
     }
 
+    pub fn walk_verts(&'a self) -> Vec<Vec<Cursor<'a>>> {
+        let mut paths = Vec::new();
+        for (k, v) in self.nodes.iter() {
+            if let None = v.assign {
+                let mut stack: Vec<Cursor> = vec![k.clone()];
+                for (_, parents) in v.paths().iter() {
+                    for parent in parents.iter() {
+                        stack.push(parent.clone());
+                        let new = self.defi_verts(&stack, parent);
+                        paths.extend(new);
+                    }
+                }
+            }
+        }
+        paths
+    }
+
+    fn defi_verts(&'a self, stack: &Vec<Cursor<'a>>, last_cur: &'a Cursor) -> Vec<Vec<Cursor<'a>>> {
+        let mut stacks = Vec::new();
+        let mut stack = stack.clone();
+        let last_vert = self.nodes.get(&last_cur).unwrap();
+        let mut counter = 0;
+        for (_, parents) in last_vert.paths().iter() {
+            for parent in parents.iter() {
+                if stack.contains(parent) {
+                    continue;
+                }
+                stack.push(parent.clone());
+                stacks.extend(self.defi_verts(&stack, parent));
+                stack.pop();
+                counter += 1;
+            }
+            if counter == 0 && stack.len() > 0 {
+                stacks.push(stack.clone());
+            }
+        }
+        stacks
+    }
     /// recursively search for paths
     fn depth_first(
         &'a self,
