@@ -11,14 +11,60 @@ sinks:
   "echo_statement":
     sources:
       - "$_GET"
-      - "$_POST"
+      - "$_SERVER"
+      - "$_REQUEST"
+      - "$_COOKIE"
     sanitizers:
       "json_encode":
       "intval":
+      "htmlspecialchars":
+      "htmlentities":
+      "highlight_string":
+      "urlencode":
+      "unset":
+      "absint":
+  "print":
+    sources:
+      - "$_GET"
+      - "$_SERVER"
+      - "$_REQUEST"
+      - "$_COOKIE"
+    sanitizers:
+      "json_encode":
+      "intval":
+      "htmlspecialchars":
+      "htmlentities":
+      "highlight_string":
+      "urlencode":
+      "unset":
+      "absint":
   "printf":
     sources:
       - "$_GET"
-      - "$_POST"
+      - "$_SERVER"
+      - "$_REQUEST"
+      - "$_COOKIE"
     sanitizers:
       "json_encode":
       "intval":
+      "htmlspecialchars":
+      "htmlentities":
+      "highlight_string":
+      "urlencode":
+      "unset":
+      "absint":
+  "vprintf":
+    sources:
+      - "$_GET"
+      - "$_SERVER"
+      - "$_REQUEST"
+      - "$_COOKIE"
+    sanitizers:
+      "json_encode":
+      "intval":
+      "htmlspecialchars":
+      "htmlentities":
+      "highlight_string":
+      "urlencode":
+      "unset":
+      "absint":

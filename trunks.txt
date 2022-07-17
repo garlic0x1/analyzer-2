@@ -1,3 +1,4 @@
+http://plugins.svn.wordpress.org/real-time-validation-for-gravity-forms/trunk
 http://plugins.svn.wordpress.org/astra-sites/trunk
 http://plugins.svn.wordpress.org/media-sync/trunk
 http://plugins.svn.wordpress.org/check-and-enable-gzip-compression/trunk
@@ -10,7 +11,6 @@ http://plugins.svn.wordpress.org/email-post-changes/trunk
 http://plugins.svn.wordpress.org/nitropack/trunk
 http://plugins.svn.wordpress.org/dragdropr/trunk
 http://plugins.svn.wordpress.org/wp-fastest-cache/trunk
-http://plugins.svn.wordpress.org/real-time-validation-for-gravity-forms/trunk
 http://plugins.svn.wordpress.org/nextgen-gallery-voting/trunk
 http://plugins.svn.wordpress.org/wp-mail-logging/trunk
 http://plugins.svn.wordpress.org/export-media-urls/trunk

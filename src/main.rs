@@ -41,7 +41,7 @@ fn main() {
         println!("---");
         let rules = Rules::from_yaml("new.yaml");
         eprintln!("routing");
-        let paths = graph.walk_verts();
+        let paths = graph.walk();
         //let paths = graph.walk();
         println!("{:?}", paths);
         for path in paths.iter() {

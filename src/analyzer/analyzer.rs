@@ -70,7 +70,6 @@ impl<'a> Analyzer<'a> {
         }
 
         for cur in cursors {
-            eprintln!("traversing root {}", cur.filename());
             self.traverse(cur);
         }
     }
@@ -90,7 +89,7 @@ impl<'a> Analyzer<'a> {
                     "variable_name" => {
                         // check if in left of assignment and return
                         if let Some(s) = cur.raw_cursor().field_name() {
-                            if s == "left" || s == "object" || s == "condition" {
+                            if s == "left" || s == "object" {
                                 return Breaker::Continue;
                             }
                         }
@@ -140,7 +139,6 @@ impl<'a> Analyzer<'a> {
             }
         };
         let mut cursor = cursor.clone();
-        eprintln!("passing closure to traverser");
         cursor.traverse(&mut closure);
         returns
     }
@@ -150,9 +148,7 @@ impl<'a> Analyzer<'a> {
             resolved.cursor().kind().to_string(),
             resolved.name(),
         )) {
-            eprintln!("entering {}", resolved.name());
             self.traverse(resolved.cursor());
-            eprintln!("leaving {}", resolved.name());
             self.context.pop();
         }
     }
@@ -195,7 +191,7 @@ impl<'a> Analyzer<'a> {
                     push_path = false;
                     false
                 }
-                "expression_statement" => false,
+                "expression_statement" | "condition" => false,
                 // record index
                 "argument" => {
                     index = cur.get_index();
@@ -235,9 +231,7 @@ impl<'a> Analyzer<'a> {
                             path.clone(),
                         );
                         // traverse and see if it has tainted return
-                        eprintln!("entering {}", resolved.name());
                         let cont = self.traverse(resolved.cursor());
-                        eprintln!("leaving {}", resolved.name());
 
                         //pop
                         self.taints.clear_scope(&Scope::new(param_cur.clone()));
