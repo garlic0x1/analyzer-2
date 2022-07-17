@@ -70,6 +70,7 @@ impl<'a> Analyzer<'a> {
         }
 
         for cur in cursors {
+            eprintln!("traversing root {}", cur.filename());
             self.traverse(cur);
         }
     }
@@ -89,7 +90,7 @@ impl<'a> Analyzer<'a> {
                     "variable_name" => {
                         // check if in left of assignment and return
                         if let Some(s) = cur.raw_cursor().field_name() {
-                            if s == "left" || s == "object" {
+                            if s == "left" || s == "object" || s == "condition" {
                                 return Breaker::Continue;
                             }
                         }
@@ -123,14 +124,8 @@ impl<'a> Analyzer<'a> {
                         }
                         */
                         if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
+                            self.jump(resolved.clone());
                             // if not recursive, jump
-                            if self.context.push(Context::new(
-                                resolved.cursor().kind().to_string(),
-                                resolved.name(),
-                            )) {
-                                self.traverse(resolved.cursor());
-                                self.context.pop();
-                            }
                         } else if self.hooks.contains(&cur.name().unwrap()) {
                             self.handle_hook(cur);
                         }
@@ -145,8 +140,21 @@ impl<'a> Analyzer<'a> {
             }
         };
         let mut cursor = cursor.clone();
+        eprintln!("passing closure to traverser");
         cursor.traverse(&mut closure);
         returns
+    }
+
+    fn jump(&mut self, resolved: Resolved<'a>) {
+        if self.context.push(Context::new(
+            resolved.cursor().kind().to_string(),
+            resolved.name(),
+        )) {
+            eprintln!("entering {}", resolved.name());
+            self.traverse(resolved.cursor());
+            eprintln!("leaving {}", resolved.name());
+            self.context.pop();
+        }
     }
 
     fn handle_hook(&mut self, cursor: Cursor<'a>) {
@@ -156,14 +164,8 @@ impl<'a> Analyzer<'a> {
                     "argument" => {
                         if cur.to_string().len() > 2 {
                             let name = &cur.to_string()[1..cur.to_string().len() - 1];
-                            if self.resolved.contains_key(name) {
-                                if self
-                                    .context
-                                    .push(Context::new("hook".to_string(), name.to_string()))
-                                {
-                                    self.traverse(cur.clone());
-                                    self.context.pop();
-                                }
+                            if let Some(resolved) = self.resolved.clone().get(name) {
+                                self.jump(resolved.clone());
                                 return Breaker::Break;
                             }
                         }
@@ -233,7 +235,9 @@ impl<'a> Analyzer<'a> {
                             path.clone(),
                         );
                         // traverse and see if it has tainted return
+                        eprintln!("entering {}", resolved.name());
                         let cont = self.traverse(resolved.cursor());
+                        eprintln!("leaving {}", resolved.name());
 
                         //pop
                         self.taints.clear_scope(&Scope::new(param_cur.clone()));

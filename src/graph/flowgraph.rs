@@ -23,6 +23,13 @@ impl<'a> PathItem<'a> {
     pub fn new(source: Taint, path: Vec<Cursor<'a>>) -> Self {
         Self { source, path }
     }
+
+    pub fn to_str(&self) -> &str {
+        match self.path.first() {
+            Some(cur) => cur.to_str(),
+            None => "",
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -55,16 +62,7 @@ impl<'a> Vertex<'a> {
 
 impl<'a> std::fmt::Debug for Vertex<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = self
-            .paths
-            .iter()
-            .next()
-            .unwrap()
-            .1
-            .iter()
-            .next()
-            .unwrap()
-            .to_string();
+        let s = self.paths.iter().next().unwrap().0.to_str().to_string();
 
         write!(f, "{}", s)
     }

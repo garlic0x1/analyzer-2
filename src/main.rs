@@ -17,6 +17,7 @@ fn main() {
                 continue;
             }
             if word.contains("http") {
+                eprintln!("downloading {}", word);
                 let file = File::from_url(word).expect("failed to download");
                 files.push(file);
                 continue;
@@ -31,6 +32,7 @@ fn main() {
         let mut analyzer =
             Analyzer::from_sources(file_refs, vec!["_GET".to_string(), "_POST".to_string()]);
         // perform analysis
+        eprintln!("analyzing");
         analyzer.analyze();
         // get populated flow graph
         let graph = analyzer.graph();
@@ -38,6 +40,7 @@ fn main() {
 
         println!("---");
         let rules = Rules::from_yaml("new.yaml");
+        eprintln!("routing");
         let paths = graph.walk();
         for path in paths.iter() {
             if rules.test_path(path) {

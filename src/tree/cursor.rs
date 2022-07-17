@@ -189,11 +189,31 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    // pub fn new_traverse(&mut self, handler: &dyn FnMut(Self, bool) -> Breaker) {
+    //     let start = self.cursor.node().id();
+    //     let mut cont = true;
+    //     loop {
+    //         let cur = self.clone();
+    //         if cont && (self.goto_first_child() || self.goto_next_sibling()) {
+    //             match handler(cur, true) {
+    //                 Breaker::Continue => {}
+    //                 Breaker::Pass => if self.goto_next_sibling() {},
+    //                 Breaker::Break => {
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
     /// accepts a mutable closure to execute on node entry
     pub fn traverse(&mut self, handler: &mut dyn FnMut(Self, bool) -> Breaker) {
         let start_node = self.cursor.node().id();
         let mut visited = false;
         loop {
+            eprintln!("{}", self.kind());
+            eprintln!("{}", self.to_str());
+            eprintln!("{}", self.filename());
             let cur = self.clone();
             if visited {
                 if self.cursor.goto_next_sibling() {
@@ -203,18 +223,8 @@ impl<'a> Cursor<'a> {
                             Breaker::Continue => continue,
                             Breaker::Break => break,
                             Breaker::Pass => {
-                                if self.cursor.goto_next_sibling() {
-                                    continue;
-                                } else if self.cursor.goto_parent() {
-                                    if cur.raw_cursor().node().is_named() {
-                                        handler(cur, false);
-                                    }
-                                    if self.cursor.node().id() == start_node {
-                                        break;
-                                    }
-                                    //visited = true;
-                                    continue;
-                                }
+                                visited = true;
+                                continue;
                             }
                         }
                     }

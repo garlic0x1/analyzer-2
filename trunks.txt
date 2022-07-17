@@ -1,3 +1,4 @@
+http://plugins.svn.wordpress.org/astra-sites/trunk
 http://plugins.svn.wordpress.org/media-sync/trunk
 http://plugins.svn.wordpress.org/check-and-enable-gzip-compression/trunk
 http://plugins.svn.wordpress.org/wp-gallery-custom-links/trunk
@@ -21,7 +22,6 @@ http://plugins.svn.wordpress.org/safe-svg/trunk
 http://plugins.svn.wordpress.org/clean-image-filenames/trunk
 http://plugins.svn.wordpress.org/yet-another-related-posts-plugin/trunk
 http://plugins.svn.wordpress.org/http-security/trunk
-http://plugins.svn.wordpress.org/astra-sites/trunk
 http://plugins.svn.wordpress.org/genesis-enews-extended/trunk
 http://plugins.svn.wordpress.org/postmark-approved-wordpress-plugin/trunk
 http://plugins.svn.wordpress.org/master-addons/trunk
