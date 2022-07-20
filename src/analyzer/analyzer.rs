@@ -186,6 +186,11 @@ impl<'a> Analyzer<'a> {
         let mut push_path = false;
         let mut index: usize = 0;
         let mut closure = |cur: Cursor<'a>| -> bool {
+            if let Some(s) = cur.raw_cursor().field_name() {
+                if s == "condition" {
+                    return false;
+                }
+            }
             match cur.kind() {
                 "return_statement" => {
                     let assign = Taint::new_return(cur.clone());
@@ -195,7 +200,7 @@ impl<'a> Analyzer<'a> {
                     push_path = false;
                     false
                 }
-                "expression_statement" | "condition" => false,
+                "expression_statement" => false,
                 // record index
                 "argument" => {
                     index = cur.get_index();

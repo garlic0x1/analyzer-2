@@ -11,6 +11,8 @@ Class Data {
 	}
 }
 
+
+
 $user_input = $_GET['input'];
 $improperly_filtered = "$user_input";
 $d = new Data;
@@ -23,5 +25,9 @@ query($improperly_filtered);
 echo $improperly_filtered;
 
 // alerts because taint follows through method call into $t
-query($t)));
+query($t);
+
+$x = (($t) >= 1) ? 1 : 2;
+
+query($x);
 ?>

@@ -28,6 +28,9 @@ fn main() {
 
         let file_refs: Vec<&File> = files.iter().map(|file| -> &File { &file }).collect();
 
+        let dumper = crate::utils::dumper::Dumper::new(file_refs.clone());
+        println!("{}", dumper.dump());
+
         // create analyzer
         let mut analyzer =
             Analyzer::from_sources(file_refs, vec!["_GET".to_string(), "_POST".to_string()]);
