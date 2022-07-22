@@ -71,7 +71,9 @@ impl Rules {
         if let Some(sink) = sink {
             for c in path.iter() {
                 if let Some(pname) = c.name() {
-                    if sink.sanitizers.contains_key(&pname) {
+                    if sink.sanitizers.contains_key(&pname)
+                        || sink.sanitizers.contains_key(c.kind())
+                    {
                         return false;
                     }
                 }

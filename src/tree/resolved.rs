@@ -50,6 +50,7 @@ impl<'a> Resolved<'a> {
         }
     }
 
+    /// for debugging
     pub fn dump_parameters(&self) -> String {
         let mut string = String::new();
         for cur in self.parameters().iter() {

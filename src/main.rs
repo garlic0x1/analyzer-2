@@ -28,8 +28,8 @@ fn main() {
 
         let file_refs: Vec<&File> = files.iter().map(|file| -> &File { &file }).collect();
 
-        let dumper = crate::utils::dumper::Dumper::new(file_refs.clone());
-        println!("{}", dumper.dump());
+        //let dumper = crate::utils::dumper::Dumper::new(file_refs.clone());
+        // println!("{}", dumper.dump());
 
         // create analyzer
         let mut analyzer =
@@ -39,15 +39,13 @@ fn main() {
         analyzer.analyze();
         // get populated flow graph
         let graph = analyzer.graph();
-        println!("{}", graph.dump());
+        eprintln!("{}", graph.dump());
 
-        println!("---");
         let rules = Rules::from_yaml("new.yaml");
         eprintln!("routing");
         let paths = graph.walk_verts();
-        //let paths = graph.walk();
         println!("{:?}", paths);
-        //let paths = graph.verts_to_path(paths);
+        println!("---");
         for path in paths.iter() {
             if rules.test_path(&graph.verts_to_path(path.clone())) {
                 let filename = path.first().unwrap().filename();
