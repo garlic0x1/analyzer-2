@@ -1,4 +1,7 @@
+use super::resolved::*;
+use super::traverser::*;
 use crate::tree::cursor::Cursor;
+use std::collections::HashMap;
 use std::error::Error;
 use tree_sitter::*;
 
@@ -54,5 +57,9 @@ impl File {
 
     pub fn cursor(&self) -> Cursor {
         Cursor::new(self.raw_cursor(), self)
+    }
+
+    pub fn iter(&self) -> Traversal {
+        Traversal::from_file(self)
     }
 }

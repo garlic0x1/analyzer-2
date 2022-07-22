@@ -1,4 +1,5 @@
 use crate::tree::cursor::*;
+use crate::tree::file::*;
 
 pub struct Traversal<'a> {
     cursor: Cursor<'a>,
@@ -17,6 +18,18 @@ impl<'a> Traversal<'a> {
             start: cursor.clone(),
             last: None,
             cursor,
+            visited: false,
+            concrete: false,
+            end: false,
+            blocks: Vec::new(),
+        }
+    }
+
+    pub fn from_file(file: &'a File) -> Self {
+        Self {
+            start: file.cursor(),
+            last: None,
+            cursor: file.cursor(),
             visited: false,
             concrete: false,
             end: false,
@@ -104,6 +117,7 @@ impl<'a> Traversal<'a> {
 }
 
 /// ordering wrapper for cursor
+#[derive(Clone)]
 pub enum Order<'a> {
     Enter(Cursor<'a>),
     Leave(Cursor<'a>),

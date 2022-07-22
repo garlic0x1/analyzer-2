@@ -4,6 +4,7 @@ use crate::graph::rules::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
 use crate::tree::resolved::*;
+use crate::tree::traverser::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -58,9 +59,23 @@ impl<'a> Analyzer<'a> {
     /// first resolves names
     /// then begins traversal
     pub fn analyze(&mut self) {
-        for file in self.files.iter() {
-            let cur = Cursor::from_file(file);
-            self.resolved.extend(cur.resolve());
+        for &file in self.files.iter() {
+            let mut traversal = file.iter();
+            while let Some(motion) = traversal.next() {
+                if let Order::Enter(cur) = motion.clone() {
+                    match cur.kind() {
+                        "function_definition" | "method_declaration" => {
+                            self.resolved
+                                .insert(cur.name().unwrap(), Resolved::new_function(cur));
+                        }
+                        "program" => {
+                            self.resolved
+                                .insert("ROOT".to_string(), Resolved::new_root(cur));
+                        }
+                        _ => (),
+                    }
+                }
+            }
         }
 
         let mut cursors = Vec::new();

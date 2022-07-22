@@ -50,21 +50,4 @@ impl<'a> Dumper<'a> {
 
         string
     }
-
-    pub fn resolved(&self) -> String {
-        let mut string = String::new();
-        for file in self.files.iter() {
-            for (_, r) in file.cursor().resolve().iter() {
-                if let Resolved::Function { cursor } = r {
-                    string.push_str(&format!(
-                        "{}: {}",
-                        cursor.name().unwrap(),
-                        r.dump_parameters()
-                    ));
-                }
-            }
-        }
-
-        string
-    }
 }

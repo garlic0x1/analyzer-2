@@ -8,11 +8,15 @@ pub enum Resolved<'a> {
 
 impl<'a> Resolved<'a> {
     pub fn new_function(cursor: Cursor<'a>) -> Self {
-        Self::Function { cursor }
+        Self::Function {
+            cursor: cursor.clone(),
+        }
     }
 
     pub fn new_root(cursor: Cursor<'a>) -> Self {
-        Self::Root { cursor }
+        Self::Root {
+            cursor: cursor.clone(),
+        }
     }
 
     pub fn cursor(&self) -> Cursor<'a> {

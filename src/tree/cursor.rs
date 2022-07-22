@@ -121,65 +121,17 @@ impl<'a> Cursor<'a> {
             }
         }
 
-        let mut name = String::new();
-
         for motion in self.iter_all() {
             if let Order::Enter(cur) = motion {
                 if cur.kind() == "name" {
-                    name = cur.to_string();
-                    break;
+                    return Some(cur.to_string());
                 }
             }
         }
 
-        Some(name)
+        None
     }
 
-    /// resolve all namespaces underneath the cursor
-    pub fn resolve(&self) -> HashMap<String, Resolved<'a>> {
-        let mut list: HashMap<String, Resolved> = HashMap::new();
-
-        if !self.cursor.clone().goto_parent() {
-            list.insert("ROOT".to_owned(), Resolved::new_root(self.clone()));
-        }
-
-        // create a closure to give the traverser
-        let mut enter_node = |cur: Self, entering: bool| -> Breaker {
-            if entering {
-                match cur.kind() {
-                    "function_definition" => {
-                        if let Some(name) = cur.name() {
-                            // add a resolved function
-                            list.insert(name, Resolved::new_function(cur));
-                        }
-                    }
-                    "method_declaration" => {
-                        if let Some(name) = cur.name() {
-                            // add a resolved function
-                            list.insert(name, Resolved::new_function(cur));
-                        }
-                    }
-                    "class_definition" => {
-                        if let Some(name) = cur.name() {
-                            // add a resolved function
-                        }
-                    }
-                    "property_name" => {
-                        if let Some(name) = cur.name() {
-                            // add a resolved function
-                        }
-                    }
-                    _ => (),
-                }
-            }
-            Breaker::Continue
-        };
-
-        let mut cur = self.clone();
-        cur.traverse(&mut enter_node);
-
-        list
-    }
     /// traces up the tree calling closure
     pub fn trace(&mut self, closure: &mut dyn FnMut(Self) -> bool) {
         while self.goto_parent() {
