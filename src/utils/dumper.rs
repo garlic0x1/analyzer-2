@@ -13,26 +13,61 @@ impl<'a> Dumper<'a> {
         Self { files }
     }
 
+    pub fn dump_pass(cursor: Cursor<'a>) -> String {
+        let mut string = String::new();
+
+        let mut traversal = Traversal::new(cursor);
+
+        while let Some(cur) = traversal.next() {
+            match cur {
+                Order::Enter(cur) => {
+                    if cur.raw_cursor().node().is_named() {
+                        if cur.kind() == "method_declaration" {
+                            traversal.pass();
+                        }
+                        let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                        string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
+                    }
+                }
+                Order::Leave(cur) => {
+                    if cur.raw_cursor().node().is_named() {
+                        let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                        string.push_str(&format!("{}}}\n", indent));
+                    }
+                }
+            }
+        }
+
+        string
+    }
+    pub fn dump_cursor(cursor: Cursor<'a>) -> String {
+        let mut string = String::new();
+
+        for cur in cursor.iter() {
+            match cur {
+                Order::Enter(cur) => {
+                    if cur.raw_cursor().node().is_named() {
+                        let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                        string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
+                    }
+                }
+                Order::Leave(cur) => {
+                    if cur.raw_cursor().node().is_named() {
+                        let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                        string.push_str(&format!("{}}}\n", indent));
+                    }
+                }
+            }
+        }
+
+        string
+    }
+
     pub fn dump(&self) -> String {
         let mut string = String::new();
 
         for file in self.files.iter() {
-            for cur in file.cursor().iter() {
-                match cur {
-                    Order::Enter(cur) => {
-                        if cur.raw_cursor().node().is_named() {
-                            let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                            string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
-                        }
-                    }
-                    Order::Leave(cur) => {
-                        if cur.raw_cursor().node().is_named() {
-                            let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                            string.push_str(&format!("{}}}\n", indent));
-                        }
-                    }
-                }
-            }
+            string.push_str(&Dumper::dump_pass(file.cursor()));
         }
 
         let string2 = self.dump2();

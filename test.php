@@ -9,6 +9,7 @@ Class Data {
 		// test return
 		return $temp;
 	}
+	public $a = 0;
 }
 
 

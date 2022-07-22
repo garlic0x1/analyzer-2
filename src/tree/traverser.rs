@@ -2,19 +2,30 @@ use crate::tree::cursor::*;
 
 pub struct Traversal<'a> {
     cursor: Cursor<'a>,
-    visited: bool,
+    last: Option<Cursor<'a>>,
     start: Cursor<'a>,
-    last: bool,
+    visited: bool,
+    end: bool,
 }
 
 impl<'a> Traversal<'a> {
     pub fn new(cursor: Cursor<'a>) -> Self {
         Self {
             start: cursor.clone(),
+            last: None,
             cursor,
             visited: false,
-            last: false,
+            end: false,
         }
+    }
+
+    pub fn pass(&mut self) {
+        if let Some(cur) = &self.last {
+            self.cursor = cur.clone();
+        } else {
+            self.end = true;
+        }
+        self.visited = true;
     }
 }
 
@@ -30,15 +41,16 @@ impl<'a> Iterator for Traversal<'a> {
     /// get the next step in iteration
     fn next(&mut self) -> Option<Self::Item> {
         let last = self.cursor.clone();
+        self.last = Some(last.clone());
 
-        if self.last {
+        if self.end {
             return None;
         }
 
         if self.visited {
             // break when we have completely visited start
             if last == self.start {
-                self.last = true;
+                self.end = true;
             }
 
             if self.cursor.goto_next_sibling() {
@@ -49,7 +61,7 @@ impl<'a> Iterator for Traversal<'a> {
                 // leave
                 return Some(Order::Leave(last));
             } else {
-                self.last = true;
+                self.end = true;
                 return Some(Order::Leave(last));
             }
         } else {
