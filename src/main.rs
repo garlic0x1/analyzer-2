@@ -30,7 +30,10 @@ fn main() {
 
         let dumper = crate::utils::dumper::Dumper::new(file_refs.clone());
         println!("{}", dumper.dump());
-        println!("{}", dumper.dump2());
+        let mut cur = files.first().unwrap().cursor();
+        cur.goto_first_child();
+        cur.goto_next_sibling();
+        println!("{}", Dumper::dump_cursor(cur));
 
         // create analyzer
         let mut analyzer =
@@ -40,7 +43,7 @@ fn main() {
         analyzer.analyze();
         // get populated flow graph
         let graph = analyzer.graph();
-        eprintln!("{}", graph.dump());
+        //eprintln!("{}", graph.dump());
 
         let rules = Rules::from_yaml("new.yaml");
         eprintln!("routing");

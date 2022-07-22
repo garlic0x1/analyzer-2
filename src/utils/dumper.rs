@@ -13,40 +13,27 @@ impl<'a> Dumper<'a> {
         Self { files }
     }
 
-    /// for testing iterator
-    pub fn dump_pass(cursor: Cursor<'a>) -> String {
-        let mut string = String::new();
-
-        let mut traversal =
-            Traversal::new_block(cursor, vec!["method_declaration", "function_definition"]);
-
-        while let Some(cur) = traversal.next() {
-            match cur {
-                Order::Enter(cur) => {
-                    let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                    string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
-                }
-                Order::Leave(cur) => {
-                    let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                    string.push_str(&format!("{}}}\n", indent));
-                }
-            }
-        }
-
-        string
-    }
+    /// associated function to dump individual cursors
     pub fn dump_cursor(cursor: Cursor<'a>) -> String {
         let mut string = String::new();
+        let mut depth = 0;
 
-        for cur in cursor.iter() {
+        for cur in cursor.iter_all() {
             match cur {
                 Order::Enter(cur) => {
-                    let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                    string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
+                    let indent = "  ".repeat(depth);
+                    string.push_str(&format!("{}Kind: {}\n", indent, cur.kind()));
+                    if cur.kind() == "name" {
+                        string.push_str(&format!("{}Name: {}\n", indent, cur.to_str()));
+                    }
+                    if let Some(field) = cur.raw_cursor().field_name() {
+                        string.push_str(&format!("{}Field: {}\n", indent, field));
+                    }
+
+                    depth += 1;
                 }
-                Order::Leave(cur) => {
-                    let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                    string.push_str(&format!("{}}}\n", indent));
+                Order::Leave(_) => {
+                    depth -= 1;
                 }
             }
         }
@@ -59,33 +46,6 @@ impl<'a> Dumper<'a> {
 
         for file in self.files.iter() {
             string.push_str(&Dumper::dump_cursor(file.cursor()));
-        }
-
-        let string2 = self.dump2();
-        println!("{}", string == string2);
-
-        string
-    }
-
-    /// dump the tree as a string
-    pub fn dump2(&self) -> String {
-        let mut string = String::new();
-        let mut node_handler = |cur: Cursor, entering: bool| -> Breaker {
-            if entering {
-                let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                string.push_str(&format!("{}Kind: {}\n", indent, cur.kind()));
-                if let Some(field) = cur.raw_cursor().field_name() {
-                    string.push_str(&format!("{}Field: {}\n", indent, field));
-                }
-                if cur.kind() == "name" {
-                    string.push_str(&format!("{}Name: {:?}\n", indent, cur.to_string()));
-                }
-            }
-            Breaker::Continue
-        };
-
-        for file in self.files.iter() {
-            file.cursor().traverse(&mut node_handler);
         }
 
         string
@@ -106,19 +66,5 @@ impl<'a> Dumper<'a> {
         }
 
         string
-    }
-
-    /// determine the depth of the node
-    fn depth(cursor: Cursor) -> usize {
-        let mut d = 0;
-        let mut tracer = |_: Cursor| -> bool {
-            d += 1;
-            true
-        };
-
-        let mut cursor = cursor;
-        cursor.trace(&mut tracer);
-
-        d
     }
 }

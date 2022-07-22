@@ -63,8 +63,15 @@ impl<'a> Cursor<'a> {
         self.cursor.node().kind()
     }
 
-    pub fn iter(&self) -> Traversal {
+    pub fn iter_all(&self) -> Traversal {
         Traversal::new(self.clone())
+    }
+
+    pub fn iter_block(&self) -> Traversal {
+        Traversal::new_block(
+            self.clone(),
+            vec!["method_declaration", "function_definition"],
+        )
     }
 
     pub fn raw_cursor(&self) -> TreeCursor<'a> {
