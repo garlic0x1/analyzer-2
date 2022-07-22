@@ -102,10 +102,9 @@ impl<'a> Cursor<'a> {
         if self.kind() == "name" {
             return Some(self.to_string());
         }
-        let mut name = String::new();
 
+        // hacky fix because depth first incorrect for method calls
         {
-            // hacky fix because depth first incorrect for method calls
             let mut cur = self.clone();
             cur.goto_first_child();
             while cur.goto_next_sibling() {
@@ -114,6 +113,8 @@ impl<'a> Cursor<'a> {
                 }
             }
         }
+
+        let mut name = String::new();
 
         // create a mutable closure, and capture the string to mutate
         let mut enter_node = |cur: Self, entering: bool| -> Breaker {

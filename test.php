@@ -1,5 +1,8 @@
 <?php
 Class Data {
+	public function test() {
+		return $_GET;
+	}
 	public static function dangerous($param) {
 		$temp = ($param);
 		// this should not alert because the variable is not in scope

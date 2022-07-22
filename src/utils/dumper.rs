@@ -16,24 +16,20 @@ impl<'a> Dumper<'a> {
     pub fn dump_pass(cursor: Cursor<'a>) -> String {
         let mut string = String::new();
 
-        let mut traversal = Traversal::new(cursor);
+        let mut traversal = Traversal::new_concrete(cursor);
 
         while let Some(cur) = traversal.next() {
             match cur {
                 Order::Enter(cur) => {
-                    if cur.raw_cursor().node().is_named() {
-                        if cur.kind() == "method_declaration" {
-                            traversal.pass();
-                        }
-                        let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                        string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
+                    if cur.kind() == "method_declaration" {
+                        traversal.pass();
                     }
+                    let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                    string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
                 }
                 Order::Leave(cur) => {
-                    if cur.raw_cursor().node().is_named() {
-                        let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                        string.push_str(&format!("{}}}\n", indent));
-                    }
+                    let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                    string.push_str(&format!("{}}}\n", indent));
                 }
             }
         }
@@ -46,16 +42,12 @@ impl<'a> Dumper<'a> {
         for cur in cursor.iter() {
             match cur {
                 Order::Enter(cur) => {
-                    if cur.raw_cursor().node().is_named() {
-                        let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                        string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
-                    }
+                    let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                    string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
                 }
                 Order::Leave(cur) => {
-                    if cur.raw_cursor().node().is_named() {
-                        let indent = "  ".repeat(Dumper::depth(cur.clone()));
-                        string.push_str(&format!("{}}}\n", indent));
-                    }
+                    let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                    string.push_str(&format!("{}}}\n", indent));
                 }
             }
         }
