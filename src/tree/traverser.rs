@@ -4,6 +4,7 @@ pub struct Traversal<'a> {
     cursor: Cursor<'a>,
     start: Cursor<'a>,
     last: Option<Cursor<'a>>,
+    blocks: Vec<&'a str>,
     concrete: bool,
     visited: bool,
     end: bool,
@@ -19,6 +20,20 @@ impl<'a> Traversal<'a> {
             visited: false,
             concrete: false,
             end: false,
+            blocks: Vec::new(),
+        }
+    }
+
+    /// abstract block traversal, does not crawl into specified node kinds
+    pub fn new_block(cursor: Cursor<'a>, blocks: Vec<&'a str>) -> Self {
+        Self {
+            start: cursor.clone(),
+            last: None,
+            cursor,
+            visited: false,
+            concrete: false,
+            end: false,
+            blocks,
         }
     }
 
@@ -31,6 +46,7 @@ impl<'a> Traversal<'a> {
             visited: false,
             concrete: true,
             end: false,
+            blocks: Vec::new(),
         }
     }
 
@@ -46,19 +62,9 @@ impl<'a> Traversal<'a> {
         // switch to visited so we leave it
         self.visited = true;
     }
-}
 
-pub enum Order<'a> {
-    Enter(Cursor<'a>),
-    Leave(Cursor<'a>),
-}
-
-/// preorder and postorder together, for pushing and popping to context stack
-impl<'a> Iterator for Traversal<'a> {
-    type Item = Order<'a>;
-
-    /// get the next step in iteration
-    fn next(&mut self) -> Option<Self::Item> {
+    /// next item in traversal
+    pub fn step(&mut self) -> Option<Order<'a>> {
         let last = self.cursor.clone();
         self.last = Some(last.clone());
 
@@ -76,38 +82,56 @@ impl<'a> Iterator for Traversal<'a> {
             if self.cursor.goto_next_sibling() {
                 // we havent visited this yet, break out of leave loop
                 self.visited = false;
-                if !self.concrete && !last.raw_cursor().node().is_named() {
-                    return self.next();
-                }
                 return Some(Order::Leave(last));
             } else if self.cursor.goto_parent() {
-                if !self.concrete && !last.raw_cursor().node().is_named() {
-                    return self.next();
-                }
                 return Some(Order::Leave(last));
             } else {
                 // break if we are at the root node
                 self.end = true;
-                if !self.concrete && !last.raw_cursor().node().is_named() {
-                    return self.next();
-                }
                 return Some(Order::Leave(last));
             }
         } else {
             // if not visited, keep entering child nodes
             if self.cursor.goto_first_child() {
-                if !self.concrete && !last.raw_cursor().node().is_named() {
-                    return self.next();
-                }
                 return Some(Order::Enter(last));
             } else {
                 // we are at a leaf, turn around
                 self.visited = true;
-                if !self.concrete && !self.cursor.raw_cursor().node().is_named() {
-                    return self.next();
-                }
                 return Some(Order::Enter(self.cursor.clone()));
             }
         }
+    }
+}
+
+/// ordering wrapper for cursor
+pub enum Order<'a> {
+    Enter(Cursor<'a>),
+    Leave(Cursor<'a>),
+}
+
+/// preorder and postorder together, for pushing and popping to context stack
+impl<'a> Iterator for Traversal<'a> {
+    type Item = Order<'a>;
+
+    /// get the next step in iteration
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(item) = self.step() {
+            match &item {
+                Order::Enter(cur) => {
+                    if self.concrete || cur.raw_cursor().node().is_named() {
+                        if self.blocks.contains(&cur.kind()) {
+                            self.pass();
+                        }
+                        return Some(item);
+                    }
+                }
+                Order::Leave(cur) => {
+                    if self.concrete || cur.raw_cursor().node().is_named() {
+                        return Some(item);
+                    }
+                }
+            }
+        }
+        None
     }
 }

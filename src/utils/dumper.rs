@@ -13,17 +13,16 @@ impl<'a> Dumper<'a> {
         Self { files }
     }
 
+    /// for testing iterator
     pub fn dump_pass(cursor: Cursor<'a>) -> String {
         let mut string = String::new();
 
-        let mut traversal = Traversal::new_concrete(cursor);
+        let mut traversal =
+            Traversal::new_block(cursor, vec!["method_declaration", "function_definition"]);
 
         while let Some(cur) = traversal.next() {
             match cur {
                 Order::Enter(cur) => {
-                    if cur.kind() == "method_declaration" {
-                        traversal.pass();
-                    }
                     let indent = "  ".repeat(Dumper::depth(cur.clone()));
                     string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
                 }
@@ -59,7 +58,7 @@ impl<'a> Dumper<'a> {
         let mut string = String::new();
 
         for file in self.files.iter() {
-            string.push_str(&Dumper::dump_pass(file.cursor()));
+            string.push_str(&Dumper::dump_cursor(file.cursor()));
         }
 
         let string2 = self.dump2();
