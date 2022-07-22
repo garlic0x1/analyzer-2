@@ -123,25 +123,14 @@ impl<'a> Cursor<'a> {
 
         let mut name = String::new();
 
-        // create a mutable closure, and capture the string to mutate
-        let mut enter_node = |cur: Self, entering: bool| -> Breaker {
-            if entering {
-                if cur.cursor.node().kind() == "name" {
-                    // return false to stop crawling
+        for motion in self.iter_all() {
+            if let Order::Enter(cur) = motion {
+                if cur.kind() == "name" {
                     name = cur.to_string();
-                    Breaker::Break
-                } else {
-                    // continue crawling
-                    Breaker::Continue
+                    break;
                 }
-            } else {
-                Breaker::Continue
             }
-        };
-
-        // traverse a clone for self immutability
-        let mut cur = self.clone();
-        cur.traverse(&mut enter_node);
+        }
 
         Some(name)
     }
