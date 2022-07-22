@@ -1,8 +1,19 @@
 use crate::tree::cursor::*;
 
-struct Traversal<'a> {
+pub struct Traversal<'a> {
     cursor: Cursor<'a>,
     visited: bool,
+    start: Cursor<'a>,
+}
+
+impl<'a> Traversal<'a> {
+    pub fn new(cursor: Cursor<'a>) -> Self {
+        Self {
+            start: cursor.clone(),
+            cursor,
+            visited: false,
+        }
+    }
 }
 
 pub enum Order<'a> {
@@ -20,7 +31,7 @@ impl<'a> Iterator for Traversal<'a> {
             if self.cursor.goto_next_sibling() {
                 self.visited = false;
                 // returning enter
-                return Some(Order::Enter(self.cursor.clone()));
+                return Some(Order::Leave(last));
             } else if self.cursor.goto_parent() {
                 // returning leave
                 return Some(Order::Leave(last));
@@ -30,11 +41,11 @@ impl<'a> Iterator for Traversal<'a> {
         } else {
             if self.cursor.goto_first_child() {
                 // return enter
-                return Some(Order::Enter(self.cursor.clone()));
+                return Some(Order::Enter(last));
             } else {
                 // leave
                 self.visited = true;
-                return Some(Order::Leave(last));
+                return Some(Order::Enter(self.cursor.clone()));
             }
         }
     }

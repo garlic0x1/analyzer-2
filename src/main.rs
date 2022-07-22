@@ -28,8 +28,9 @@ fn main() {
 
         let file_refs: Vec<&File> = files.iter().map(|file| -> &File { &file }).collect();
 
-        //let dumper = crate::utils::dumper::Dumper::new(file_refs.clone());
-        // println!("{}", dumper.dump());
+        let dumper = crate::utils::dumper::Dumper::new(file_refs.clone());
+        println!("{}", dumper.dump());
+        println!("{}", dumper.dump2());
 
         // create analyzer
         let mut analyzer =

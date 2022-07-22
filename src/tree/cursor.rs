@@ -1,5 +1,6 @@
 use super::file::*;
 use super::resolved::*;
+use super::traverser::*;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use tree_sitter::*;
@@ -60,6 +61,10 @@ impl<'a> Cursor<'a> {
 
     pub fn kind(&self) -> &str {
         self.cursor.node().kind()
+    }
+
+    pub fn iter(&self) -> Traversal {
+        Traversal::new(self.clone())
     }
 
     pub fn raw_cursor(&self) -> TreeCursor<'a> {

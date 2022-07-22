@@ -1,6 +1,7 @@
 use crate::tree::cursor::*;
 use crate::tree::file::*;
 use crate::tree::resolved::*;
+use crate::tree::traverser::*;
 
 pub struct Dumper<'a> {
     files: Vec<&'a File>,
@@ -12,8 +13,36 @@ impl<'a> Dumper<'a> {
         Self { files }
     }
 
-    /// dump the tree as a string
     pub fn dump(&self) -> String {
+        let mut string = String::new();
+
+        for file in self.files.iter() {
+            for cur in file.cursor().iter() {
+                match cur {
+                    Order::Enter(cur) => {
+                        if cur.raw_cursor().node().is_named() {
+                            let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                            string.push_str(&format!("{}Kind: {} {{\n", indent, cur.kind()));
+                        }
+                    }
+                    Order::Leave(cur) => {
+                        if cur.raw_cursor().node().is_named() {
+                            let indent = "  ".repeat(Dumper::depth(cur.clone()));
+                            string.push_str(&format!("{}}}\n", indent));
+                        }
+                    }
+                }
+            }
+        }
+
+        let string2 = self.dump2();
+        println!("{}", string == string2);
+
+        string
+    }
+
+    /// dump the tree as a string
+    pub fn dump2(&self) -> String {
         let mut string = String::new();
         let mut node_handler = |cur: Cursor, entering: bool| -> Breaker {
             if entering {
