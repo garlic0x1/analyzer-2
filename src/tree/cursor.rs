@@ -1,16 +1,8 @@
 use super::file::*;
-use super::resolved::*;
 use super::tracer::Trace;
 use super::traverser::*;
-use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use tree_sitter::*;
-
-pub enum Breaker {
-    Continue,
-    Break,
-    Pass,
-}
 
 #[derive(Clone)]
 pub struct Cursor<'a> {
@@ -76,6 +68,10 @@ impl<'a> Cursor<'a> {
         Traversal::new_block(&self, vec!["method_declaration", "function_definition"])
     }
 
+    pub fn trace(&self) -> Trace {
+        Trace::new(self.clone())
+    }
+
     pub fn raw_cursor(&self) -> TreeCursor<'a> {
         self.cursor.clone()
     }
@@ -117,6 +113,7 @@ impl<'a> Cursor<'a> {
         self.cursor.goto_next_sibling()
     }
 
+    /// try to find the name of current node
     pub fn name(&self) -> Option<String> {
         // handle name nodes properly
         if self.kind() == "name" {
@@ -143,10 +140,6 @@ impl<'a> Cursor<'a> {
         }
 
         None
-    }
-
-    pub fn trace(&self) -> Trace {
-        Trace::new(self.clone())
     }
 
     /// get which child index we are in
@@ -183,17 +176,5 @@ impl<'a> Cursor<'a> {
         let node = self.cursor.node();
         let slice = &self.file.get_source()[node.byte_range()];
         slice
-    }
-
-    /// get the smallest named node within the current node
-    pub fn to_smallest_string(&self) -> Option<String> {
-        let node = self.cursor.node();
-        let node = node.named_descendant_for_byte_range(node.start_byte(), node.start_byte());
-
-        if let Some(n) = node {
-            let slice = &self.file.get_source()[n.byte_range()];
-            return Some(slice.to_string());
-        }
-        None
     }
 }

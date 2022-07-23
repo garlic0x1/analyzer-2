@@ -60,23 +60,7 @@ impl<'a> Analyzer<'a> {
     /// first resolves names
     /// then begins traversal
     pub fn analyze(&mut self) {
-        for file in self.files.iter() {
-            for motion in file.traverse() {
-                if let Order::Enter(cur) = motion.clone() {
-                    match cur.kind() {
-                        "function_definition" | "method_declaration" => {
-                            self.resolved
-                                .insert(cur.name().unwrap(), Resolved::new_function(cur));
-                        }
-                        "program" => {
-                            self.resolved
-                                .insert("ROOT".to_string(), Resolved::new_root(cur));
-                        }
-                        _ => (),
-                    }
-                }
-            }
-        }
+        self.resolve_files();
 
         let mut cursors = Vec::new();
         for file in self.files.iter() {
@@ -106,7 +90,7 @@ impl<'a> Analyzer<'a> {
                     match cur.kind() {
                         "variable_name" => {
                             // check if in left of assignment and return
-                            if let Some(s) = cur.raw_cursor().field_name() {
+                            if let Some(s) = cur.field() {
                                 if s == "left" || s == "object" {
                                     continue;
                                 }
@@ -158,6 +142,7 @@ impl<'a> Analyzer<'a> {
         returns
     }
 
+    /// push ctx to stack and enter new frame, returns true if there are taints.
     fn jump(&mut self, name: &str) {
         if let Some(resolved) = self.resolved.clone().get(name) {
             if self.context.push(Context::new(
@@ -195,7 +180,7 @@ impl<'a> Analyzer<'a> {
 
         let mut tracer = Trace::new(cursor);
         while let Some(cur) = tracer.next() {
-            if let Some(s) = cur.raw_cursor().field_name() {
+            if let Some(s) = cur.field() {
                 if s == "condition" {
                     break;
                 }
@@ -302,9 +287,25 @@ impl<'a> Analyzer<'a> {
             cur.clone(),
             Vertex::new(self.context.clone(), Some(assign.clone()), pitem),
         );
-        println!(
-            "connecting source: {} to taint: {}, scope: {:?}",
-            source.name, assign.name, assign.scope
-        );
+    }
+
+    fn resolve_files(&mut self) {
+        for file in self.files.iter() {
+            for motion in file.traverse() {
+                if let Order::Enter(cur) = motion.clone() {
+                    match cur.kind() {
+                        "function_definition" | "method_declaration" => {
+                            self.resolved
+                                .insert(cur.name().unwrap(), Resolved::new_function(cur));
+                        }
+                        "program" => {
+                            self.resolved
+                                .insert("ROOT".to_string(), Resolved::new_root(cur));
+                        }
+                        _ => (),
+                    }
+                }
+            }
+        }
     }
 }
