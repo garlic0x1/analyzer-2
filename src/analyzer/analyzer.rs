@@ -39,11 +39,19 @@ impl<'a> Analyzer<'a> {
         }
     }
 
+    pub fn from_ruleset(files: Vec<&'a File>, ruleset: &Rules) -> Self {
+        let mut sources = Vec::new();
+        for source in ruleset.sources().iter() {
+            sources.push(source.to_string());
+        }
+        Analyzer::from_sources(files, sources)
+    }
+
     /// returns a new analyzer with sources to trace
     pub fn from_sources(files: Vec<&'a File>, sources: Vec<String>) -> Self {
         let mut taints = TaintList::new();
         for source in sources {
-            taints.push(Taint::new_source(source));
+            taints.push(Taint::new_source(source.clone()));
         }
         let hooks: HashSet<String> = vec!["add_action".to_string()].into_iter().collect();
 
@@ -98,7 +106,7 @@ impl<'a> Analyzer<'a> {
                             // check for taint and trace
                             if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
                                 let cur_scope = Scope::new(cur.clone());
-                                eprintln!("testing {:?}", t);
+                                //eprintln!("testing {:?}", t);
                                 if cur_scope.contains(&t.scope) {
                                     if self.trace(cur.clone(), t) {
                                         returns = true;
@@ -149,9 +157,9 @@ impl<'a> Analyzer<'a> {
                 resolved.cursor().kind().to_string(),
                 resolved.name(),
             )) {
-                eprintln!("jumping to {}", resolved.name());
+                //eprintln!("jumping to {}", resolved.name());
                 let mut cur = resolved.cursor();
-                println!("found body: {}", cur.goto_field("body"));
+                //println!("found body: {}", cur.goto_field("body"));
                 self.traverse(cur);
                 self.context.pop();
             }
@@ -207,8 +215,7 @@ impl<'a> Analyzer<'a> {
                     break;
                 }
                 "function_call_expression" | "member_call_expression" => {
-                    if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()).clone()
-                    {
+                    if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
                         let resolved = resolved.clone();
                         let params = resolved.parameters().clone();
                         let param_cur = params

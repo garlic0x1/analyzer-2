@@ -1,110 +1,94 @@
 use crate::graph::flowgraph::*;
 use crate::tree::cursor::*;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::{Hash, Hasher},
+};
 
 // a set of rules to alert for
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Rules {
     // sinks and their data
-    sinks: HashMap<String, Sink>,
+    vulns: HashMap<String, Vuln>,
     // sources just to get the analyzer started
     sources: HashSet<String>,
     hooks: HashSet<String>,
 }
 
-impl Rules {
-    pub fn new(
-        sinks: HashMap<String, Sink>,
-        sources: HashSet<String>,
-        hooks: HashSet<String>,
-    ) -> Self {
-        Self {
-            sinks,
-            sources,
-            hooks,
-        }
-    }
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Vuln {
+    sinks: HashMap<String, Option<Vec<u32>>>,
+    sources: HashSet<String>,
+    // funcs that make sink safe
+    sanitizers: HashMap<String, Option<Vec<u32>>>,
+    // funcs that make sink dangerous
+    waypoints: Option<Vec<Waypoint>>,
+}
 
+impl Rules {
     pub fn from_yaml(filename: &str) -> Self {
         // parse yaml/json into our structure
         let contents = std::fs::read_to_string(filename).expect("no such file");
-        serde_yaml::from_str(&contents).expect("cant deserialize")
+        let rules: Self = serde_yaml::from_str(&contents).expect("cant deserialize");
+        println!("sinks: {:?}", rules.sinks());
+        rules
     }
 
-    pub fn sources(&self) -> &HashSet<String> {
-        &self.sources
+    pub fn sources(&self) -> HashSet<String> {
+        let mut outset = self.sources.clone();
+        for (_kind, vuln) in self.vulns.iter() {
+            outset.extend(vuln.sources.clone());
+        }
+        outset
     }
 
-    pub fn sinks(&self) -> &HashMap<String, Sink> {
-        &self.sinks
+    pub fn sinks(&self) -> HashMap<String, Option<Vec<u32>>> {
+        let mut names = HashMap::new();
+        for (_kind, vuln) in self.vulns.iter() {
+            for (name, sink) in vuln.sinks.iter() {
+                names.insert(name.clone(), sink.clone());
+            }
+        }
+
+        names
     }
 
     pub fn hooks(&self) -> &HashSet<String> {
         &self.hooks
     }
 
-    // pub fn test_verts(&self, verts: &Vec<Vertex>) {
-    //     let mut path = Vec::new();
-    //     let mut last_vert = Option<Vertex<'a>>;
-    //     let mut first = true;
-    //     for vert in verts.iter() {
-    //         if first {
-    //             let sink_name = vert.paths.first().expect("empty path").name().unwrap();
-    //         }
-    //         path.extend();
-    //         first = false;
-    //     }
-    // }
-
     pub fn test_path(&self, path: &Vec<Cursor>) -> bool {
-        let sink_name = &path.first().expect("empty path").name().unwrap();
-        let &sink_kind = &path.first().expect("empty").kind();
-        let mut sink: Option<Sink> = None;
-        if let Some(nsink) = self.sinks.get(sink_name) {
-            sink = Some(nsink.clone());
-        }
-        if let Some(nsink) = self.sinks.get(sink_kind) {
-            sink = Some(nsink.clone());
-        }
-        if let Some(sink) = sink {
-            for c in path.iter() {
-                if let Some(pname) = c.name() {
-                    if sink.sanitizers.contains_key(&pname)
-                        || sink.sanitizers.contains_key(c.kind())
-                    {
-                        return false;
+        for segment in path.iter() {
+            let segname = &segment.name().unwrap_or_default();
+            let segkind = segment.kind();
+            for (_kind, vuln) in self.vulns.iter() {
+                let mut cont = false;
+                if vuln.sinks.contains_key(segname) {
+                    cont = true;
+                } else if vuln.sinks.contains_key(segkind) {
+                    cont = true;
+                }
+
+                if cont {
+                    for segment in path.iter() {
+                        let segname = &segment.name().unwrap_or_default();
+                        let segkind = segment.kind();
+                        if vuln.sanitizers.contains_key(segname)
+                            || vuln.sanitizers.contains_key(segkind)
+                        {
+                            return false;
+                        }
                     }
+                    return true;
                 }
             }
-
-            return true;
         }
         false
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct Sink {
-    // specify which args are dangerous
-    // all are dangerous if None
-    args: Option<Vec<u32>>,
-    // funcs that make sink safe
-    sanitizers: HashMap<String, Option<Vec<u32>>>,
-    // funcs that make sink dangerous
-    waypoints: Option<Vec<Waypoint>>,
-    // sources that make the sink vuln
-    sources: Vec<String>,
-}
-
-impl Sink {
-    // pub fn name(&self) -> &str {
-    //     &self.name.unwrap_or_default()
-    // }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct Waypoint {
     // specify which args sanitize the function
     args: Option<Vec<u32>>,

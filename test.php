@@ -24,6 +24,7 @@ query($improperly_filtered);
 
 // this does alert because magic quotes dont stop xss
 echo $improperly_filtered;
+printf($improperly_filtered);
 
 // alerts because taint follows through method call into $t
 query($t);

@@ -179,7 +179,7 @@ impl Scope {
         } else {
             return true;
         }
-        eprintln!("self: {:?} \nother: {:?}", self, other);
+        //eprintln!("self: {:?} \nother: {:?}", self, other);
         false
     }
 }

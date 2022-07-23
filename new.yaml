@@ -1,70 +1,92 @@
 sources: []
 hooks: []
-sinks:
-  "query":
+vulns:
+  "sqli":
     sources:
-      - "$_GET"
-      - "$_POST"
+      - "_GET"
+      - "_POST"
+      - "_SERVER"
+      - "_REQUEST"
+      - "_COOKIE"
+      - "_SESSION"
+      - "_FILES"
+      - "phperrormessge"
+    sinks:
+      "query":
+      "querySingle":
+      "$php_errorm":
+      "real_query":
+      "maxdb_real_query":
+      "maxdb_query":
+      "ingres_prepare":
+      "cubrid_query":
+      "cubrid_execute":
+      "sqlite_open":
+      "sqlite_popen":
+      "sqlite_array_query":
+      "arrayQuery":
+      "singleQuery":
+      "sqlite_query":
+      "sqlite_exec":
+      "sqlite_single_query":
+      "sqlite_unbuffered_query":
+      "sybase_query":
+      "sybase_unbuffered_query":
+      "mssql_execute":
+      "mysql_db_query":
+      "mysql_unbuffered_query":
+      "mysqli_stmt_execute":
+      "mysqli_execute":
+      "mysqli_query":
+      "mysqli_real_query":
+      "mysqli_master_query":
+      "ociparse":
+      "oci_parse":
+      "ovrimos_exec":
+      "ovrimos_execute":
+      "ora_do": null
     sanitizers:
       "json_encode":
-      "intval":
-  "echo_statement":
-    sources:
-      - "$_GET"
-      - "$_SERVER"
-      - "$_REQUEST"
-      - "$_COOKIE"
-    sanitizers:
-      "json_encode":
-      "intval":
+      "wp_hash_password":
+      "empty":
       "htmlspecialchars":
       "htmlentities":
       "highlight_string":
       "urlencode":
+      "(int)":
+      "(bool)":
+      "(double)":
       "unset":
-      "absint":
-  "print":
-    sources:
-      - "$_GET"
-      - "$_SERVER"
-      - "$_REQUEST"
-      - "$_COOKIE"
-    sanitizers:
-      "json_encode":
       "intval":
+      "absint": null
+  "xss":
+    sources:
+      - "_GET"
+      - "phperrormsg"
+    sinks:
+      "echo_statement":
+      "print":
+      "print_r":
+      "exit":
+      "die":
+      "printf":
+      "vprintf":
+      "trigger_error":
+      "user_error":
+      "odbc_result_all":
+      "ovrimos_result_all":
+      "ifx_htmltbl_result":
+    sanitizers:
+      "wp_hash_password":
+      "json_encode":
+      "empty":
       "htmlspecialchars":
       "htmlentities":
       "highlight_string":
       "urlencode":
+      "(int)":
+      "(bool)":
+      "(double)":
       "unset":
-      "absint":
-  "printf":
-    sources:
-      - "$_GET"
-      - "$_SERVER"
-      - "$_REQUEST"
-      - "$_COOKIE"
-    sanitizers:
-      "json_encode":
       "intval":
-      "htmlspecialchars":
-      "htmlentities":
-      "highlight_string":
-      "urlencode":
-      "unset":
-      "absint":
-  "vprintf":
-    sources:
-      - "$_GET"
-      - "$_SERVER"
-      - "$_REQUEST"
-      - "$_COOKIE"
-    sanitizers:
-      "json_encode":
-      "intval":
-      "htmlspecialchars":
-      "htmlentities":
-      "highlight_string":
-      "urlencode":
-      "unset":
       "absint":

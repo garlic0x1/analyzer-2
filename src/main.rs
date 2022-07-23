@@ -10,6 +10,7 @@ pub mod tree;
 pub mod utils;
 
 fn main() {
+    let rules = Rules::from_yaml("new.yaml");
     for line in io::stdin().lock().lines() {
         let mut files = Vec::new();
         for word in line.unwrap().split(' ') {
@@ -18,8 +19,9 @@ fn main() {
             }
             if word.contains("http") {
                 eprintln!("downloading {}", word);
-                let file = File::from_url(word).expect("failed to download");
-                files.push(file);
+                if let Ok(file) = File::from_url(word) {
+                    files.push(file);
+                }
                 continue;
             }
             let file = File::new(word);
@@ -36,8 +38,7 @@ fn main() {
         println!("{}", Dumper::dump_cursor(cur));
 
         // create analyzer
-        let mut analyzer =
-            Analyzer::from_sources(file_refs, vec!["_GET".to_string(), "_POST".to_string()]);
+        let mut analyzer = Analyzer::from_ruleset(file_refs, &rules);
         // perform analysis
         eprintln!("analyzing");
         analyzer.analyze();
@@ -45,10 +46,9 @@ fn main() {
         let graph = analyzer.graph();
         eprintln!("{}", graph.dump());
 
-        let rules = Rules::from_yaml("new.yaml");
         eprintln!("routing");
-        let paths = graph.walk_verts();
-        println!("{:?}", paths);
+        let paths = graph.crawl_sinks(&rules);
+        println!("paths: {:?}", paths);
         println!("---");
         for path in paths.iter() {
             if rules.test_path(&graph.verts_to_path(path.clone())) {

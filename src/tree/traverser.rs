@@ -65,7 +65,7 @@ impl<'a> Traversal<'a> {
 
     /// skip over this node
     pub fn pass(&mut self) {
-        eprintln!("passing {}", self.last.clone().unwrap().to_str());
+        //eprintln!("passing {}", self.last.clone().unwrap().to_str());
         // if the one the user wants to skip isnt the first, go back to there, else end
         if let Some(cur) = &self.last {
             self.cursor = cur.clone();

@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
+use super::rules::Rules;
+
 // #[derive(Clone)]
 // pub struct Veretex<'a> {
 //     source: Taint,
@@ -125,24 +127,6 @@ impl<'a> Graph<'a> {
         }
     }
 
-    /// walk up a graph from vertex key
-    pub fn walk(&'a self) -> Vec<Vec<Cursor<'a>>> {
-        let mut paths = Vec::new();
-        for (_, v) in self.nodes.iter() {
-            if let None = v.assign {
-                for (path, parents) in v.paths().iter() {
-                    let stack: Vec<Cursor> = path.path.clone();
-                    let new = self.depth_first(&stack, v);
-                    if true || new.len() > 0 {
-                        paths.extend(new);
-                    }
-                }
-            }
-        }
-
-        paths
-    }
-
     pub fn verts_to_path(&'a self, vert_path: Vec<Cursor<'a>>) -> Vec<Cursor<'a>> {
         let mut last_cur: Option<Cursor<'a>> = None;
         let mut out_path = Vec::new();
@@ -162,18 +146,38 @@ impl<'a> Graph<'a> {
         out_path
     }
 
-    pub fn walk_verts(&'a self) -> Vec<Vec<Cursor<'a>>> {
+    pub fn crawl_sinks(&'a self, ruleset: &Rules) -> Vec<Vec<Cursor<'a>>> {
         let mut paths = Vec::new();
         for (k, v) in self.nodes.iter() {
-            if let None = v.assign {
-                let mut stack: Vec<Cursor> = vec![k.clone()];
-                for (_, parents) in v.paths().iter() {
-                    for parent in parents.iter() {
-                        stack.push(parent.clone());
-                        let new = self.defi_verts(&stack, parent);
-                        paths.extend(new);
+            for (item, path) in v.paths().iter() {
+                for cur in path.iter() {
+                    println!("gothere2");
+                    let mut crawl = ruleset.sinks().contains_key(&k.name().unwrap_or_default());
+                    if ruleset.sinks().contains_key(k.kind()) {
+                        crawl = true;
+                    }
+                    if let Some(n) = cur.name() {
+                        //println!("{:?}", ruleset.sinks());
+                        if ruleset.sinks().contains_key(&n) {
+                            crawl = true;
+                        }
+                    }
+                    if ruleset.sinks().contains_key(cur.kind()) {
+                        crawl = true;
+                    }
+                    if crawl {
+                        println!("crawling from {}", cur.name().unwrap());
+                        let mut stack: Vec<Cursor> = vec![k.clone()];
+                        for (_, parents) in v.paths().iter() {
+                            for parent in parents.iter() {
+                                stack.push(parent.clone());
+                                let new = self.defi_verts(&stack, parent);
+                                paths.extend(new);
+                            }
+                        }
                     }
                 }
+                if let None = v.assign {}
             }
         }
         paths
@@ -191,32 +195,6 @@ impl<'a> Graph<'a> {
                 }
                 stack.push(parent.clone());
                 stacks.extend(self.defi_verts(&stack, parent));
-                stack.pop();
-                counter += 1;
-            }
-            if counter == 0 && stack.len() > 0 {
-                stacks.push(stack.clone());
-            }
-        }
-        stacks
-    }
-    /// recursively search for paths
-    fn depth_first(
-        &'a self,
-        stack: &Vec<Cursor<'a>>,
-        last_vert: &'a Vertex,
-    ) -> Vec<Vec<Cursor<'a>>> {
-        let mut stacks = Vec::new();
-        let mut stack = stack.clone();
-        let mut counter = 0;
-        for (path, parents) in last_vert.paths().iter() {
-            for parent in parents.iter() {
-                if stack.contains(parent) {
-                    continue;
-                }
-                let parent_vert = self.nodes.get(parent).expect("no such parent");
-                stack.extend(path.path.clone());
-                stacks.extend(self.depth_first(&stack, parent_vert));
                 stack.pop();
                 counter += 1;
             }
