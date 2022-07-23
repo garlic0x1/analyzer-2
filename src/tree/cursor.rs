@@ -68,15 +68,12 @@ impl<'a> Cursor<'a> {
         self.cursor.field_name()
     }
 
-    pub fn iter_all(&self) -> Traversal {
+    pub fn traverse(&self) -> Traversal {
         Traversal::new(&self)
     }
 
-    pub fn iter_block(&self) -> Traversal {
-        Traversal::new_block(
-            self.clone(),
-            vec!["method_declaration", "function_definition"],
-        )
+    pub fn traverse_block(&self) -> Traversal {
+        Traversal::new_block(&self, vec!["method_declaration", "function_definition"])
     }
 
     pub fn raw_cursor(&self) -> TreeCursor<'a> {
@@ -137,7 +134,7 @@ impl<'a> Cursor<'a> {
             }
         }
 
-        for motion in self.iter_all() {
+        for motion in self.traverse() {
             if let Order::Enter(cur) = motion {
                 if cur.kind() == "name" {
                     return Some(cur.to_string());
@@ -150,63 +147,6 @@ impl<'a> Cursor<'a> {
 
     pub fn trace(&self) -> Trace {
         Trace::new(self.clone())
-    }
-
-    /// traces up the tree calling closure
-    pub fn trace_old(&mut self, closure: &mut dyn FnMut(Self) -> bool) {
-        while self.goto_parent() {
-            if self.cursor.node().is_named() {
-                if !closure(self.clone()) {
-                    break;
-                }
-            }
-        }
-    }
-
-    /// accepts a mutable closure to execute on node entry
-    pub fn traverse(&mut self, handler: &mut dyn FnMut(Self, bool) -> Breaker) {
-        let start_node = self.cursor.node().id();
-        let mut visited = false;
-        loop {
-            let cur = self.clone();
-            if visited {
-                if self.cursor.goto_next_sibling() {
-                    visited = false;
-                    if self.cursor.node().is_named() {
-                        match handler(self.clone(), true) {
-                            Breaker::Continue => continue,
-                            Breaker::Break => break,
-                            Breaker::Pass => {
-                                visited = true;
-                                continue;
-                            }
-                        }
-                    }
-                } else if self.cursor.goto_parent() {
-                    if cur.raw_cursor().node().is_named() {
-                        handler(cur, false);
-                    }
-                    if self.cursor.node().id() == start_node {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            } else if self.cursor.goto_first_child() {
-                if self.cursor.node().is_named() {
-                    match handler(self.clone(), true) {
-                        Breaker::Continue => continue,
-                        Breaker::Break => break,
-                        Breaker::Pass => {
-                            visited = true;
-                            continue;
-                        }
-                    }
-                }
-            } else {
-                visited = true;
-            }
-        }
     }
 
     /// get which child index we are in

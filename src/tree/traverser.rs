@@ -38,11 +38,11 @@ impl<'a> Traversal<'a> {
     }
 
     /// abstract block traversal, does not crawl into specified node kinds
-    pub fn new_block(cursor: Cursor<'a>, blocks: Vec<&'a str>) -> Self {
+    pub fn new_block(cursor: &Cursor<'a>, blocks: Vec<&'a str>) -> Self {
         Self {
             start: cursor.clone(),
             last: None,
-            cursor,
+            cursor: cursor.clone(),
             visited: false,
             concrete: false,
             end: false,
@@ -51,11 +51,11 @@ impl<'a> Traversal<'a> {
     }
 
     /// concrete traversal (all nodes)
-    pub fn new_concrete(cursor: Cursor<'a>) -> Self {
+    pub fn new_concrete(cursor: &Cursor<'a>) -> Self {
         Self {
             start: cursor.clone(),
             last: None,
-            cursor,
+            cursor: cursor.clone(),
             visited: false,
             concrete: true,
             end: false,

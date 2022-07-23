@@ -18,7 +18,7 @@ impl<'a> Dumper<'a> {
         let mut string = String::new();
         let mut depth = 0;
 
-        for cur in cursor.iter_all() {
+        for cur in cursor.traverse() {
             match cur {
                 Order::Enter(cur) => {
                     let indent = "  ".repeat(depth);

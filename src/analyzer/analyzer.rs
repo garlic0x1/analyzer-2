@@ -61,7 +61,7 @@ impl<'a> Analyzer<'a> {
     /// then begins traversal
     pub fn analyze(&mut self) {
         for file in self.files.iter() {
-            for motion in file.iter() {
+            for motion in file.traverse() {
                 if let Order::Enter(cur) = motion.clone() {
                     match cur.kind() {
                         "function_definition" | "method_declaration" => {
@@ -98,10 +98,8 @@ impl<'a> Analyzer<'a> {
     /// Optionally returns a taint with the function
     fn traverse(&mut self, cursor: Cursor<'a>) -> bool {
         let mut returns = false;
-        let mut traversal = Traversal::new_block(
-            cursor.clone(),
-            vec!["method_declaration", "function_definition"],
-        );
+        let mut traversal =
+            Traversal::new_block(&cursor, vec!["method_declaration", "function_definition"]);
         while let Some(motion) = traversal.next() {
             match motion {
                 Order::Enter(cur) => {
@@ -176,7 +174,7 @@ impl<'a> Analyzer<'a> {
     }
 
     fn handle_hook(&mut self, cursor: Cursor<'a>) {
-        for motion in cursor.iter_all() {
+        for motion in cursor.traverse() {
             if let Order::Enter(cur) = motion {
                 if cur.kind() == "argument" {
                     if cur.to_string().len() > 2 {

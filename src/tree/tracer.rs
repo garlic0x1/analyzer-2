@@ -19,7 +19,11 @@ impl<'s> Iterator for Trace<'s> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor.goto_parent() {
-            return Some(self.cursor.clone());
+            if self.concrete || self.cursor.raw_cursor().node().is_named() {
+                return Some(self.cursor.clone());
+            } else {
+                return self.next();
+            }
         } else {
             return None;
         }

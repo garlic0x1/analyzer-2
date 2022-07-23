@@ -59,7 +59,7 @@ impl File {
         Cursor::new(self.raw_cursor(), self)
     }
 
-    pub fn iter(&self) -> Traversal {
+    pub fn traverse(&self) -> Traversal {
         Traversal::from_file(self)
     }
 }
