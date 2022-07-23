@@ -4,6 +4,7 @@ use crate::graph::rules::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
 use crate::tree::resolved::*;
+use crate::tree::tracer::Trace;
 use crate::tree::traverser::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -59,9 +60,8 @@ impl<'a> Analyzer<'a> {
     /// first resolves names
     /// then begins traversal
     pub fn analyze(&mut self) {
-        for &file in self.files.iter() {
-            let mut traversal = file.iter();
-            while let Some(motion) = traversal.next() {
+        for file in self.files.iter() {
+            for motion in file.iter() {
                 if let Order::Enter(cur) = motion.clone() {
                     match cur.kind() {
                         "function_definition" | "method_declaration" => {
@@ -98,100 +98,94 @@ impl<'a> Analyzer<'a> {
     /// Optionally returns a taint with the function
     fn traverse(&mut self, cursor: Cursor<'a>) -> bool {
         let mut returns = false;
-        let mut closure = |cur: Cursor<'a>, entering: bool| -> Breaker {
-            if entering {
-                match cur.kind() {
-                    "variable_name" => {
-                        // check if in left of assignment and return
-                        if let Some(s) = cur.raw_cursor().field_name() {
-                            if s == "left" || s == "object" {
-                                return Breaker::Continue;
+        let mut traversal = Traversal::new_block(
+            cursor.clone(),
+            vec!["method_declaration", "function_definition"],
+        );
+        while let Some(motion) = traversal.next() {
+            match motion {
+                Order::Enter(cur) => {
+                    match cur.kind() {
+                        "variable_name" => {
+                            // check if in left of assignment and return
+                            if let Some(s) = cur.raw_cursor().field_name() {
+                                if s == "left" || s == "object" {
+                                    continue;
+                                }
                             }
-                        }
-                        // check for taint and trace
-                        if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
-                            let cur_scope = Scope::new(cur.clone());
-                            eprintln!("testing {:?}", t);
-                            if cur_scope.contains(&t.scope) {
-                                if self.trace(cur, t) {
-                                    returns = true;
+                            // check for taint and trace
+                            if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
+                                let cur_scope = Scope::new(cur.clone());
+                                eprintln!("testing {:?}", t);
+                                if cur_scope.contains(&t.scope) {
+                                    if self.trace(cur.clone(), t) {
+                                        returns = true;
+                                    }
                                 }
                             }
                         }
-
-                        Breaker::Continue
+                        // push context
+                        "if_statement" => {
+                            self.context
+                                .push(Context::new(cur.kind().to_string(), cur.kind().to_string()));
+                        }
+                        _ => (),
                     }
-                    // do not crawl into these node types
-                    "function_definition" | "method_declaration" => Breaker::Pass,
-                    // push context
-                    "if_statement" => {
-                        self.context
-                            .push(Context::new(cur.kind().to_string(), cur.kind().to_string()));
-                        Breaker::Continue
-                    }
-                    _ => Breaker::Continue,
                 }
-            } else {
-                match cur.kind() {
-                    "function_call_expression" | "member_call_expression" => {
-                        /*
-                        for t in self.taints.returns().iter() {
-                            if self.trace(cur.clone(), t.clone()) {
-                                returns = true;
+                Order::Leave(cur) => {
+                    match cur.kind() {
+                        "function_call_expression" | "member_call_expression" => {
+                            /*
+                            for t in self.taints.returns().iter() {
+                                if self.trace(cur.clone(), t.clone()) {
+                                    returns = true;
+                                }
+                            }
+                            */
+                            self.jump(&cur.name().unwrap());
+                            // if not recursive, jump
+                            if self.hooks.contains(&cur.name().unwrap()) {
+                                self.handle_hook(cur);
                             }
                         }
-                        */
-                        if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
-                            self.jump(resolved.clone());
-                            // if not recursive, jump
-                        } else if self.hooks.contains(&cur.name().unwrap()) {
-                            self.handle_hook(cur);
+                        "if_statement" => {
+                            self.context.pop();
                         }
-                        Breaker::Continue
+                        _ => (),
                     }
-                    "if_statement" => {
-                        self.context.pop();
-                        Breaker::Continue
-                    }
-                    _ => Breaker::Continue,
                 }
             }
-        };
-        let mut cursor = cursor.clone();
-        cursor.traverse(&mut closure);
+        }
+
         returns
     }
 
-    fn jump(&mut self, resolved: Resolved<'a>) {
-        if self.context.push(Context::new(
-            resolved.cursor().kind().to_string(),
-            resolved.name(),
-        )) {
-            self.traverse(resolved.cursor());
-            self.context.pop();
+    fn jump(&mut self, name: &str) {
+        if let Some(resolved) = self.resolved.clone().get(name) {
+            if self.context.push(Context::new(
+                resolved.cursor().kind().to_string(),
+                resolved.name(),
+            )) {
+                eprintln!("jumping to {}", resolved.name());
+                let mut cur = resolved.cursor();
+                println!("found body: {}", cur.goto_field("body"));
+                self.traverse(cur);
+                self.context.pop();
+            }
         }
     }
 
     fn handle_hook(&mut self, cursor: Cursor<'a>) {
-        let mut closure = |cur: Cursor<'a>, entering: bool| -> Breaker {
-            if entering {
-                match cur.kind() {
-                    "argument" => {
-                        if cur.to_string().len() > 2 {
-                            let name = &cur.to_string()[1..cur.to_string().len() - 1];
-                            if let Some(resolved) = self.resolved.clone().get(name) {
-                                self.jump(resolved.clone());
-                                return Breaker::Break;
-                            }
-                        }
+        for motion in cursor.iter_all() {
+            if let Order::Enter(cur) = motion {
+                if cur.kind() == "argument" {
+                    if cur.to_string().len() > 2 {
+                        let name = &cur.to_string()[1..cur.to_string().len() - 1];
+                        self.jump(name);
                     }
-                    _ => (),
                 }
             }
-            Breaker::Continue
-        };
-        let mut cursor = cursor.clone();
-        cursor.traverse(&mut closure);
+        }
     }
 
     /// trace taints up the tree
@@ -200,42 +194,48 @@ impl<'a> Analyzer<'a> {
         let mut has_return = false;
         let mut push_path = false;
         let mut index: usize = 0;
-        let mut closure = |cur: Cursor<'a>| -> bool {
+
+        let mut tracer = Trace::new(cursor);
+        while let Some(cur) = tracer.next() {
             if let Some(s) = cur.raw_cursor().field_name() {
                 if s == "condition" {
-                    return false;
+                    break;
                 }
             }
             match cur.kind() {
                 "return_statement" => {
                     let assign = Taint::new_return(cur.clone());
                     path.push(cur.clone());
-                    self.push_taint(cur.clone(), source.clone(), assign.clone(), path.clone());
+                    self.push_taint(cur.clone(), source.clone(), assign, path.clone());
                     has_return = true;
                     push_path = false;
-                    false
+                    break;
                 }
-                "expression_statement" => false,
+                "expression_statement" => break,
                 // record index
                 "argument" => {
                     index = cur.get_index();
-                    true
                 }
                 "assignment_expression" => {
                     let assign = Taint::new_variable(cur.clone());
                     path.push(cur.clone());
-                    self.push_taint(cur.clone(), source.clone(), assign.clone(), path.clone());
+                    self.push_taint(cur.clone(), source.clone(), assign, path.clone());
                     push_path = false;
-                    false
+                    break;
                 }
                 "function_call_expression" | "member_call_expression" => {
-                    if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
-                        let params = resolved.parameters();
-                        let param_cur = params.get(index).expect(&format!(
-                            "cant find param {} {}",
-                            cur.to_string(),
-                            source.name,
-                        ));
+                    if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()).clone()
+                    {
+                        let resolved = resolved.clone();
+                        let params = resolved.parameters().clone();
+                        let param_cur = params
+                            .get(index)
+                            .expect(&format!(
+                                "cant find param {} {}",
+                                cur.to_string(),
+                                source.name,
+                            ))
+                            .clone();
 
                         let param_taint = Taint::new_param(param_cur.clone());
                         path.push(cur.clone());
@@ -244,18 +244,20 @@ impl<'a> Analyzer<'a> {
                             resolved.cursor().kind().to_string(),
                             resolved.cursor().name().unwrap(),
                         )) {
-                            return true;
+                            continue;
                         }
 
                         //push
                         self.push_taint(
                             param_cur.clone(),
                             source.clone(),
-                            param_taint.clone(),
+                            param_taint,
                             path.clone(),
                         );
                         // traverse and see if it has tainted return
-                        let cont = self.traverse(resolved.cursor());
+                        let mut res_cur = resolved.cursor();
+                        res_cur.goto_field("body");
+                        let cont = self.traverse(res_cur);
 
                         //pop
                         self.taints.clear_scope(&Scope::new(param_cur.clone()));
@@ -269,27 +271,24 @@ impl<'a> Analyzer<'a> {
                         }
                         self.taints.clear_returns();
                         self.graph.clear_returns();
-                        false
+                        break;
                     } else {
                         path.push(cur);
                         push_path = true;
-                        true
                     }
                 }
                 // special sinks
                 "echo_statement" => {
                     path.push(cur);
                     push_path = true;
-                    false
+                    break;
                 }
-                _ => true,
+                _ => (),
             }
-        };
-        let mut cursor = cursor;
-        cursor.trace(&mut closure);
+        }
         if push_path {
             if let Some(cur) = path.clone().last() {
-                let pitem = PathItem::new(source, path);
+                let pitem = PathItem::new(source.clone(), path);
                 let vert = Vertex::new(self.context.clone(), None, pitem);
                 self.graph.push(cur.clone(), vert);
             }
@@ -300,10 +299,14 @@ impl<'a> Analyzer<'a> {
 
     fn push_taint(&mut self, cur: Cursor<'a>, source: Taint, assign: Taint, path: Vec<Cursor<'a>>) {
         self.taints.push(assign.clone());
-        let pitem = PathItem::new(source, path);
+        let pitem = PathItem::new(source.clone(), path);
         self.graph.push(
             cur.clone(),
-            Vertex::new(self.context.clone(), Some(assign), pitem),
+            Vertex::new(self.context.clone(), Some(assign.clone()), pitem),
+        );
+        println!(
+            "connecting source: {} to taint: {}, scope: {:?}",
+            source.name, assign.name, assign.scope
         );
     }
 }

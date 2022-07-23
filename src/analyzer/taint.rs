@@ -146,18 +146,14 @@ impl Scope {
         let mut s = Self::new_global();
         s.filename = Some(cursor.filename());
 
-        let mut closure = |cur: Cursor| -> bool {
+        for cur in cursor.trace() {
             match cur.kind() {
                 "method_declaration" | "function_definition" => {
                     s.function = cur.name();
                 }
                 _ => (),
             }
-            true
-        };
-
-        let mut cur = cursor.clone();
-        cur.trace(&mut closure);
+        }
 
         s
     }

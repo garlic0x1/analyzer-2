@@ -1,5 +1,6 @@
 use super::file::*;
 use super::resolved::*;
+use super::tracer::Trace;
 use super::traverser::*;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -63,8 +64,12 @@ impl<'a> Cursor<'a> {
         self.cursor.node().kind()
     }
 
+    pub fn field(&self) -> Option<&str> {
+        self.cursor.field_name()
+    }
+
     pub fn iter_all(&self) -> Traversal {
-        Traversal::new(self.clone())
+        Traversal::new(&self)
     }
 
     pub fn iter_block(&self) -> Traversal {
@@ -96,6 +101,17 @@ impl<'a> Cursor<'a> {
                 return false;
             }
             i += 1;
+        }
+        true
+    }
+
+    pub fn goto_field(&mut self, field: &str) -> bool {
+        self.goto_first_child();
+        while self.field() != Some(field) {
+            if !self.goto_next_sibling() {
+                self.goto_parent();
+                return false;
+            }
         }
         true
     }
@@ -132,8 +148,12 @@ impl<'a> Cursor<'a> {
         None
     }
 
+    pub fn trace(&self) -> Trace {
+        Trace::new(self.clone())
+    }
+
     /// traces up the tree calling closure
-    pub fn trace(&mut self, closure: &mut dyn FnMut(Self) -> bool) {
+    pub fn trace_old(&mut self, closure: &mut dyn FnMut(Self) -> bool) {
         while self.goto_parent() {
             if self.cursor.node().is_named() {
                 if !closure(self.clone()) {

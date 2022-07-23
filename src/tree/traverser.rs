@@ -13,11 +13,11 @@ pub struct Traversal<'a> {
 
 impl<'a> Traversal<'a> {
     /// abstract traversal (only named nodes)
-    pub fn new(cursor: Cursor<'a>) -> Self {
+    pub fn new(cursor: &Cursor<'a>) -> Self {
         Self {
             start: cursor.clone(),
             last: None,
-            cursor,
+            cursor: cursor.clone(),
             visited: false,
             concrete: false,
             end: false,
@@ -65,6 +65,7 @@ impl<'a> Traversal<'a> {
 
     /// skip over this node
     pub fn pass(&mut self) {
+        eprintln!("passing {}", self.last.clone().unwrap().to_str());
         // if the one the user wants to skip isnt the first, go back to there, else end
         if let Some(cur) = &self.last {
             self.cursor = cur.clone();

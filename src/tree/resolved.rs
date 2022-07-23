@@ -1,4 +1,5 @@
-use super::cursor::*;
+use super::traverser::*;
+use super::{cursor::*, traverser::Order};
 
 #[derive(Clone)]
 pub enum Resolved<'a> {
@@ -8,15 +9,11 @@ pub enum Resolved<'a> {
 
 impl<'a> Resolved<'a> {
     pub fn new_function(cursor: Cursor<'a>) -> Self {
-        Self::Function {
-            cursor: cursor.clone(),
-        }
+        Self::Function { cursor }
     }
 
     pub fn new_root(cursor: Cursor<'a>) -> Self {
-        Self::Root {
-            cursor: cursor.clone(),
-        }
+        Self::Root { cursor }
     }
 
     pub fn cursor(&self) -> Cursor<'a> {
@@ -33,19 +30,19 @@ impl<'a> Resolved<'a> {
 
         match self {
             Resolved::Function { cursor } => {
-                // create mutable closure
-                let mut enter_node = |cur: Cursor<'a>, entering: bool| -> Breaker {
-                    if entering {
+                let mut cursor = cursor.clone();
+                if !cursor.goto_field("parameters") {
+                    return v;
+                }
+                let mut traversal = Traversal::new(&cursor);
+                while let Some(motion) = traversal.next() {
+                    if let Order::Enter(cur) = motion {
                         if cur.kind() == "variable_name" {
                             v.push(cur.clone());
                         }
                     }
-                    Breaker::Continue
-                };
-
-                // traverse with closure
-                let mut cursor = cursor.clone();
-                cursor.traverse(&mut enter_node);
+                }
+                eprintln!("params {:?}", v);
 
                 v
             }

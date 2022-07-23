@@ -43,7 +43,7 @@ fn main() {
         analyzer.analyze();
         // get populated flow graph
         let graph = analyzer.graph();
-        //eprintln!("{}", graph.dump());
+        eprintln!("{}", graph.dump());
 
         let rules = Rules::from_yaml("new.yaml");
         eprintln!("routing");
