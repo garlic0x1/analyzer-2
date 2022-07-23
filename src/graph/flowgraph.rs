@@ -6,15 +6,6 @@ use std::hash::{Hash, Hasher};
 
 use super::rules::Rules;
 
-// #[derive(Clone)]
-// pub struct Veretex<'a> {
-//     source: Taint,
-//     pub context: ContextStack,
-//     assign: Option<Taint>,
-//     pub path: Vec<Cursor<'a>>,
-//     pub parents: Vec<Cursor<'a>>,
-// }
-
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct PathItem<'a> {
     pub source: Taint,
@@ -209,9 +200,18 @@ impl<'a> Graph<'a> {
         stacks
     }
 
+    /*
+    pub fn oracle(&self, ruleset: &Rules, vertices: &Vec<Cursor>) -> bool {
+        let mut last_vert: Option<Vertex> = None;
+        for vert_cur in vertices {
+            let vert = self.nodes.get(vert_cur).unwrap();
+            for (item, path) in vert.paths() {}
+        }
+    }
+    */
+
     pub fn test_path(&self, ruleset: &Rules, path: &Vec<Cursor>) -> bool {
         for segment in path.iter() {
-            let vert = self.nodes.get(segment).unwrap();
             let segname = &segment.name().unwrap_or_default();
             let segkind = segment.kind();
             for (_kind, vuln) in ruleset.vulns().iter() {
@@ -225,15 +225,17 @@ impl<'a> Graph<'a> {
                 if cont {
                     for segment in path.iter() {
                         let vert = self.nodes.get(segment).unwrap();
-                        let segname = &segment.name().unwrap_or_default();
-                        let segkind = segment.kind();
-                        if vuln.sanitizers.contains_key(segname)
-                            || vuln.sanitizers.contains_key(segkind)
-                        {
-                            return false;
-                        }
                         for (item, path) in vert.paths.iter() {
                             println!("{}", item.source.name);
+                            for segment in path.iter() {
+                                let segname = &segment.name().unwrap_or_default();
+                                let segkind = segment.kind();
+                                if vuln.sanitizers.contains_key(segname)
+                                    || vuln.sanitizers.contains_key(segkind)
+                                {
+                                    return false;
+                                }
+                            }
                             if vuln.sources.contains(&item.source.name) {
                                 return true;
                             }

@@ -1,7 +1,7 @@
 <?php
 Class Data {
 	public static function dangerous($param) {
-		$temp = ($param);
+		$temp = json_encode($param);
 		// this should not alert because the variable is not in scope
 		printf($user_input);
 		// test recursion
