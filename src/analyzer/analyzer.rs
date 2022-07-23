@@ -124,7 +124,9 @@ impl<'a> Analyzer<'a> {
                 }
                 Order::Leave(cur) => {
                     match cur.kind() {
-                        "function_call_expression" | "member_call_expression" => {
+                        "function_call_expression"
+                        | "member_call_expression"
+                        | "scoped_call_expression" => {
                             /*
                             for t in self.taints.returns().iter() {
                                 if self.trace(cur.clone(), t.clone()) {
@@ -181,7 +183,7 @@ impl<'a> Analyzer<'a> {
 
     /// trace taints up the tree
     fn trace(&mut self, cursor: Cursor<'a>, source: Taint) -> bool {
-        let mut path = Vec::new();
+        let mut path = vec![cursor.clone()];
         let mut has_return = false;
         let mut push_path = false;
         let mut index: usize = 0;
@@ -214,54 +216,51 @@ impl<'a> Analyzer<'a> {
                     push_path = false;
                     break;
                 }
-                "function_call_expression" | "member_call_expression" => {
+                "function_call_expression"
+                | "member_call_expression"
+                | "scoped_call_expression" => {
                     if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
                         let resolved = resolved.clone();
                         let params = resolved.parameters().clone();
-                        let param_cur = params
-                            .get(index)
-                            .expect(&format!(
-                                "cant find param {} {}",
-                                cur.to_string(),
-                                source.name,
-                            ))
-                            .clone();
+                        if let Some(param_cur) = params.get(index) {
+                            let param_taint = Taint::new_param(param_cur.clone());
+                            path.push(cur.clone());
 
-                        let param_taint = Taint::new_param(param_cur.clone());
-                        path.push(cur.clone());
-
-                        if !self.context.push(Context::new(
-                            resolved.cursor().kind().to_string(),
-                            resolved.cursor().name().unwrap(),
-                        )) {
-                            continue;
-                        }
-
-                        //push
-                        self.push_taint(
-                            param_cur.clone(),
-                            source.clone(),
-                            param_taint,
-                            path.clone(),
-                        );
-                        // traverse and see if it has tainted return
-                        let mut res_cur = resolved.cursor();
-                        res_cur.goto_field("body");
-                        let cont = self.traverse(res_cur);
-
-                        //pop
-                        self.taints.clear_scope(&Scope::new(param_cur.clone()));
-                        self.graph.clear_scope(&Scope::new(param_cur.clone()));
-                        self.context.pop();
-
-                        if cont {
-                            for ret in self.taints.returns() {
-                                self.trace(cur.clone(), ret);
+                            if !self.context.push(Context::new(
+                                resolved.cursor().kind().to_string(),
+                                resolved.cursor().name().unwrap(),
+                            )) {
+                                continue;
                             }
+
+                            //push
+                            self.push_taint(
+                                param_cur.clone(),
+                                source.clone(),
+                                param_taint,
+                                path.clone(),
+                            );
+                            // traverse and see if it has tainted return
+                            let mut res_cur = resolved.cursor();
+                            res_cur.goto_field("body");
+                            let cont = self.traverse(res_cur);
+
+                            //pop
+                            self.taints.clear_scope(&Scope::new(param_cur.clone()));
+                            self.graph.clear_scope(&Scope::new(param_cur.clone()));
+                            self.context.pop();
+
+                            if cont {
+                                for ret in self.taints.returns() {
+                                    self.trace(cur.clone(), ret);
+                                }
+                            }
+                            self.taints.clear_returns();
+                            self.graph.clear_returns();
+                            break;
+                        } else {
+                            eprintln!("could not find matching param: {}", resolved.name());
                         }
-                        self.taints.clear_returns();
-                        self.graph.clear_returns();
-                        break;
                     } else {
                         path.push(cur);
                         push_path = true;

@@ -49,10 +49,11 @@ fn main() {
         eprintln!("routing");
         let paths = graph.crawl_sinks(&rules);
         println!("paths: {:?}", paths);
-        println!("---");
         for path in paths.iter() {
-            if rules.test_path(&graph.verts_to_path(path.clone())) {
+            eprintln!("testing path: {:?}", path);
+            if graph.test_path(&rules, &path) {
                 let filename = path.first().unwrap().filename();
+                println!("---");
                 println!("file: {}", filename);
                 println!("type: 'sqli'");
                 println!("path:");

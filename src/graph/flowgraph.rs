@@ -143,6 +143,10 @@ impl<'a> Graph<'a> {
             last_cur = Some(vert.clone());
         }
 
+        if let Some(vert) = self.nodes.get(&vert_path.last().unwrap()) {
+            for (item, path) in vert.paths.iter() {}
+        }
+
         out_path
     }
 
@@ -205,6 +209,41 @@ impl<'a> Graph<'a> {
         stacks
     }
 
+    pub fn test_path(&self, ruleset: &Rules, path: &Vec<Cursor>) -> bool {
+        for segment in path.iter() {
+            let vert = self.nodes.get(segment).unwrap();
+            let segname = &segment.name().unwrap_or_default();
+            let segkind = segment.kind();
+            for (_kind, vuln) in ruleset.vulns().iter() {
+                let mut cont = false;
+                if vuln.sinks.contains_key(segname) {
+                    cont = true;
+                } else if vuln.sinks.contains_key(segkind) {
+                    cont = true;
+                }
+
+                if cont {
+                    for segment in path.iter() {
+                        let vert = self.nodes.get(segment).unwrap();
+                        let segname = &segment.name().unwrap_or_default();
+                        let segkind = segment.kind();
+                        if vuln.sanitizers.contains_key(segname)
+                            || vuln.sanitizers.contains_key(segkind)
+                        {
+                            return false;
+                        }
+                        for (item, path) in vert.paths.iter() {
+                            println!("{}", item.source.name);
+                            if vuln.sources.contains(&item.source.name) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
     /// push a taint to the graph
     /// returns true if the vertex is unknown
     /// return false if known to stop crawl
