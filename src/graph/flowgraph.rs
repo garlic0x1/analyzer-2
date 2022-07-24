@@ -54,13 +54,15 @@ impl<'a> Vertex<'a> {
 
 impl<'a> std::fmt::Debug for Vertex<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut s = self.paths.iter().next().unwrap().0.to_str().to_string();
-        s.push('\n');
-        for seg in self.paths.iter().next().unwrap().1 {
+        let mut s = String::new(); // self.paths.iter().next().unwrap().0.to_str().to_string();
+
+        let paths = self.paths.iter().next().unwrap().0;
+
+        for seg in paths.path.iter().rev() {
             s.push_str(seg.kind());
             s.push_str(" <- ");
         }
-        s.push_str(&self.paths.iter().next().unwrap().0.source.name);
+        s.push_str(&paths.source.name);
 
         write!(f, "{}", s)
     }
@@ -85,10 +87,10 @@ impl<'a> Graph<'a> {
         for (k, v) in self.nodes.iter() {
             s.push_str(&format!(
                 "\t{i} [ label = \"{}\" ]\n",
-                format!("{}", k.to_str()).replace("\"", "\\\"")
+                (&format!("{} [{:?}]", k.to_str(), v)).replace("\"", "\\\"")
             ));
-            for (_item, path) in v.paths.iter() {
-                for c in path.iter() {
+            if let Some((path, _parent)) = v.paths.iter().next() {
+                for c in path.path.iter() {
                     let mut j = 0;
                     for (k, _) in self.nodes.iter() {
                         if c == k {
@@ -149,8 +151,8 @@ impl<'a> Graph<'a> {
     pub fn crawl_sinks(&'a self, ruleset: &Rules) -> Vec<Vec<Cursor<'a>>> {
         let mut paths = Vec::new();
         for (k, v) in self.nodes.iter() {
-            for (_item, path) in v.paths().iter() {
-                for cur in path.iter() {
+            for (path, parent) in v.paths().iter() {
+                for cur in path.path.iter() {
                     let mut crawl = ruleset.sinks().contains_key(&k.name().unwrap_or_default());
                     if ruleset.sinks().contains_key(k.kind()) {
                         crawl = true;
@@ -228,8 +230,8 @@ impl<'a> Graph<'a> {
                 if cont {
                     for segment in path.iter() {
                         let vert = self.nodes.get(segment).unwrap();
-                        for (item, path) in vert.paths.iter() {
-                            for segment in path.iter() {
+                        for (path, _parent) in vert.paths.iter() {
+                            for segment in path.path.iter() {
                                 let segname = &segment.name().unwrap_or_default();
                                 let segkind = segment.kind();
                                 if vuln.sanitizers.contains_key(segname)
@@ -238,7 +240,7 @@ impl<'a> Graph<'a> {
                                     return false;
                                 }
                             }
-                            if vuln.sources.contains(&item.source.name) {
+                            if vuln.sources.contains(&path.source.name) {
                                 return true;
                             }
                         }

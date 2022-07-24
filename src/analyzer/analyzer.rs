@@ -188,7 +188,8 @@ impl<'a> Analyzer<'a> {
 
     /// trace taints up the tree
     fn trace(&mut self, cursor: Cursor<'a>, source: Taint) -> bool {
-        let mut path = vec![cursor.clone()];
+        //let mut path = vec![cursor.clone()];
+        let mut path = Vec::new();
         let mut has_return = false;
         let mut push_path = false;
         let mut index: usize = 0;
