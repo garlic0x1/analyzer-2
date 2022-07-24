@@ -2,7 +2,6 @@ use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
 
 use super::rules::Rules;
 
@@ -55,7 +54,13 @@ impl<'a> Vertex<'a> {
 
 impl<'a> std::fmt::Debug for Vertex<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = self.paths.iter().next().unwrap().0.to_str().to_string();
+        let mut s = self.paths.iter().next().unwrap().0.to_str().to_string();
+        s.push('\n');
+        for seg in self.paths.iter().next().unwrap().1 {
+            s.push_str(seg.kind());
+            s.push_str(" <- ");
+        }
+        s.push_str(&self.paths.iter().next().unwrap().0.source.name);
 
         write!(f, "{}", s)
     }
@@ -80,10 +85,10 @@ impl<'a> Graph<'a> {
         for (k, v) in self.nodes.iter() {
             s.push_str(&format!(
                 "\t{i} [ label = \"{}\" ]\n",
-                k.to_string().replace("\"", "\\\"")
+                format!("{}", k.to_str()).replace("\"", "\\\"")
             ));
-            for (path, parents) in v.paths.iter() {
-                for c in parents.iter() {
+            for (_item, path) in v.paths.iter() {
+                for c in path.iter() {
                     let mut j = 0;
                     for (k, _) in self.nodes.iter() {
                         if c == k {
@@ -134,9 +139,9 @@ impl<'a> Graph<'a> {
             last_cur = Some(vert.clone());
         }
 
-        if let Some(vert) = self.nodes.get(&vert_path.last().unwrap()) {
-            for (item, path) in vert.paths.iter() {}
-        }
+        // if let Some(vert) = self.nodes.get(&vert_path.last().unwrap()) {
+        //     for (item, path) in vert.paths.iter() {}
+        // }
 
         out_path
     }
@@ -144,9 +149,8 @@ impl<'a> Graph<'a> {
     pub fn crawl_sinks(&'a self, ruleset: &Rules) -> Vec<Vec<Cursor<'a>>> {
         let mut paths = Vec::new();
         for (k, v) in self.nodes.iter() {
-            for (item, path) in v.paths().iter() {
+            for (_item, path) in v.paths().iter() {
                 for cur in path.iter() {
-                    println!("gothere2");
                     let mut crawl = ruleset.sinks().contains_key(&k.name().unwrap_or_default());
                     if ruleset.sinks().contains_key(k.kind()) {
                         crawl = true;
@@ -161,7 +165,6 @@ impl<'a> Graph<'a> {
                         crawl = true;
                     }
                     if crawl {
-                        println!("crawling from {}", cur.name().unwrap());
                         let mut stack: Vec<Cursor> = vec![k.clone()];
                         for (_, parents) in v.paths().iter() {
                             for parent in parents.iter() {
@@ -226,7 +229,6 @@ impl<'a> Graph<'a> {
                     for segment in path.iter() {
                         let vert = self.nodes.get(segment).unwrap();
                         for (item, path) in vert.paths.iter() {
-                            println!("{}", item.source.name);
                             for segment in path.iter() {
                                 let segname = &segment.name().unwrap_or_default();
                                 let segkind = segment.kind();

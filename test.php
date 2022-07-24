@@ -14,7 +14,7 @@ Class Data {
 
 
 
-$user_input = $_GET['input'];
+$user_input = (int) $_GET['input'];
 $improperly_filtered = "$user_input";
 $d = new Data;
 $t = $d->dangerous($_GET);

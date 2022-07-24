@@ -1,8 +1,7 @@
-use super::resolved::*;
 use super::traverser::*;
 use crate::tree::cursor::Cursor;
-use std::collections::HashMap;
 use std::error::Error;
+use std::time::Duration;
 use tree_sitter::*;
 
 pub struct File {
@@ -25,6 +24,7 @@ impl File {
     pub fn from_url(url: &str) -> Result<Self, Box<dyn Error>> {
         let client = reqwest::blocking::Client::builder()
             .user_agent("g4r1cI's super sweet scanner")
+            .timeout(Duration::from_secs(5))
             .build()?;
         let source = client.get(url).send()?.text()?;
         let mut parser = Parser::new();

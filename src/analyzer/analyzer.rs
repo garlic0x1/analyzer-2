@@ -99,7 +99,14 @@ impl<'a> Analyzer<'a> {
                         "variable_name" => {
                             // check if in left of assignment and return
                             if let Some(s) = cur.field() {
-                                if s == "left" || s == "object" {
+                                if s == "left" {
+                                    let mut pcur = cur.clone();
+                                    pcur.goto_parent();
+                                    if pcur.kind() == "assignment_expression" {
+                                        continue;
+                                    }
+                                }
+                                if s == "object" {
                                     continue;
                                 }
                             }
@@ -160,9 +167,7 @@ impl<'a> Analyzer<'a> {
                 resolved.name(),
             )) {
                 //eprintln!("jumping to {}", resolved.name());
-                let mut cur = resolved.cursor();
-                //println!("found body: {}", cur.goto_field("body"));
-                self.traverse(cur);
+                self.traverse(resolved.cursor());
                 self.context.pop();
             }
         }

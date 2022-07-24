@@ -1,6 +1,5 @@
 use crate::tree::cursor::*;
 use crate::tree::file::*;
-use crate::tree::resolved::*;
 use crate::tree::traverser::*;
 
 pub struct Dumper<'a> {

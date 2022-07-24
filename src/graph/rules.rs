@@ -1,10 +1,5 @@
-use crate::graph::flowgraph::*;
-use crate::tree::cursor::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    hash::{Hash, Hasher},
-};
+use std::collections::{HashMap, HashSet};
 
 // a set of rules to alert for
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -31,7 +26,6 @@ impl Rules {
         // parse yaml/json into our structure
         let contents = std::fs::read_to_string(filename).expect("no such file");
         let rules: Self = serde_yaml::from_str(&contents).expect("cant deserialize");
-        println!("sinks: {:?}", rules.sinks());
         rules
     }
 
