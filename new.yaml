@@ -1,5 +1,7 @@
+# any extra sources you want to graph (will not be alerted as vulns if they land in a sink)
 sources: []
-hooks: []
+# specify what functions can hook other functions
+hooks: ["add_action"]
 vulns:
   "sqli":
     sources:

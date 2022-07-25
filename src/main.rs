@@ -21,20 +21,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Ok(file) = File::from_url(word) {
                     files.push(file);
                 }
-                continue;
+            } else {
+                eprintln!("reading {}", word);
+                let file = File::new(word);
+                files.push(file);
             }
-            let file = File::new(word);
-            files.push(file);
         }
 
         let file_refs: Vec<&File> = files.iter().map(|file| -> &File { &file }).collect();
 
         let dumper = crate::utils::dumper::Dumper::new(file_refs.clone());
-        println!("{}", dumper.dump());
+        eprintln!("{}", dumper.dump());
 
         // create analyzer
         let mut analyzer = Analyzer::from_ruleset(file_refs, &rules);
         // perform analysis
+        eprintln!("analyzing tree");
         analyzer.analyze();
         // get populated flow graph
         let graph = analyzer.graph();

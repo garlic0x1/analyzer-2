@@ -41,7 +41,7 @@ impl<'a> Graph<'a> {
         let mut results = HashSet::new();
 
         for (k, v) in self.nodes.iter() {
-            for (parent, path) in v.parents().iter() {
+            for (_, path) in v.parents().iter() {
                 for segment in path.segments() {
                     let name = segment.name().unwrap_or_default();
                     let kind = segment.kind().to_string();
@@ -49,59 +49,6 @@ impl<'a> Graph<'a> {
                         if vuln.has_sink(&name) || vuln.has_sink(&kind) {
                             results.extend(self.crawl(&vuln, vec![k.clone()]));
                         }
-                    }
-                }
-            }
-        }
-
-        results
-    }
-
-    fn crawl(&self, vuln: &Vuln, stack: Vec<Cursor<'a>>) -> HashSet<Vec<Cursor>> {
-        let mut results = HashSet::new();
-        let mut stack = stack.clone();
-
-        if let Some(last) = stack.last() {
-            if let Some(vert) = self.nodes.get(last) {
-                println!("crawling {}", last.to_str());
-                for (parent, path) in vert.parents().iter() {
-                    let mut sanitized = false;
-                    for segment in path.segments() {
-                        let name = segment.name().unwrap_or_default();
-                        let kind = segment.kind().to_string();
-                        if vuln.has_source(&name) || vuln.has_source(&kind) {
-                            results.insert(stack.clone());
-                        }
-                        if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
-                            sanitized = true;
-                            break;
-                        }
-                    }
-                    if !sanitized {
-                        if vuln.has_source(&path.source().name) {
-                            results.insert(stack.clone());
-                        }
-                        stack.push(parent.clone());
-                        results.extend(self.crawl(vuln, stack.clone()));
-                        stack.pop();
-                    }
-                }
-                for (_, path) in vert.sources().iter() {
-                    let mut sanitized = false;
-                    for segment in path.segments() {
-                        let name = segment.name().unwrap_or_default();
-                        let kind = segment.kind().to_string();
-                        if vuln.has_source(&name) || vuln.has_source(&kind) {
-                            results.insert(stack.clone());
-                        }
-                        if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
-                            sanitized = true;
-                            break;
-                        }
-                    }
-
-                    if !sanitized && vuln.has_source(&path.source().name) {
-                        results.insert(stack.clone());
                     }
                 }
             }
@@ -184,5 +131,58 @@ impl<'a> Graph<'a> {
                 self.leaves.insert(assign.clone(), vec![cursor]);
             }
         }
+    }
+
+    fn crawl(&self, vuln: &Vuln, stack: Vec<Cursor<'a>>) -> HashSet<Vec<Cursor>> {
+        let mut results = HashSet::new();
+        let mut stack = stack.clone();
+
+        if let Some(last) = stack.last() {
+            if let Some(vert) = self.nodes.get(last) {
+                println!("crawling {}", last.to_str());
+                for (parent, path) in vert.parents().iter() {
+                    let mut sanitized = false;
+                    for segment in path.segments() {
+                        let name = segment.name().unwrap_or_default();
+                        let kind = segment.kind().to_string();
+                        if vuln.has_source(&name) || vuln.has_source(&kind) {
+                            results.insert(stack.clone());
+                        }
+                        if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
+                            sanitized = true;
+                            break;
+                        }
+                    }
+                    if !sanitized {
+                        if vuln.has_source(&path.source().name) {
+                            results.insert(stack.clone());
+                        }
+                        stack.push(parent.clone());
+                        results.extend(self.crawl(vuln, stack.clone()));
+                        stack.pop();
+                    }
+                }
+                for (_, path) in vert.sources().iter() {
+                    let mut sanitized = false;
+                    for segment in path.segments() {
+                        let name = segment.name().unwrap_or_default();
+                        let kind = segment.kind().to_string();
+                        if vuln.has_source(&name) || vuln.has_source(&kind) {
+                            results.insert(stack.clone());
+                        }
+                        if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
+                            sanitized = true;
+                            break;
+                        }
+                    }
+
+                    if !sanitized && vuln.has_source(&path.source().name) {
+                        results.insert(stack.clone());
+                    }
+                }
+            }
+        }
+
+        results
     }
 }
