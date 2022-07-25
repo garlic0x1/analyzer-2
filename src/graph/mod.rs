@@ -1,3 +1,3 @@
-pub mod flowgraph;
-//pub mod graph;
+pub mod graph;
 pub mod rules;
+pub mod vertex;

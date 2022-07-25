@@ -1,6 +1,7 @@
 use crate::analyzer::taint::*;
-use crate::graph::flowgraph::*;
+use crate::graph::graph::*;
 use crate::graph::rules::*;
+use crate::graph::vertex::*;
 use crate::tree::cursor::*;
 use crate::tree::file::*;
 use crate::tree::resolved::*;
@@ -284,8 +285,8 @@ impl<'a> Analyzer<'a> {
         if push_path {
             if let Some(cur) = path.clone().last() {
                 let pitem = PathItem::new(source.clone(), path);
-                let vert = Vertex::new(self.context.clone(), None, pitem);
-                self.graph.push(cur.clone(), vert);
+                let vert = Vertex::new(None, self.context.clone());
+                self.graph.push(pitem, cur.clone(), vert);
             }
         }
 
@@ -295,10 +296,8 @@ impl<'a> Analyzer<'a> {
     fn push_taint(&mut self, cur: Cursor<'a>, source: Taint, assign: Taint, path: Vec<Cursor<'a>>) {
         self.taints.push(assign.clone());
         let pitem = PathItem::new(source.clone(), path);
-        self.graph.push(
-            cur.clone(),
-            Vertex::new(self.context.clone(), Some(assign.clone()), pitem),
-        );
+        self.graph
+            .push(pitem, cur, Vertex::new(Some(assign), self.context.clone()));
     }
 
     fn resolve_files(&mut self) {

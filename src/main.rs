@@ -8,8 +8,8 @@ pub mod graph;
 pub mod tree;
 pub mod utils;
 
-fn main() {
-    let rules = Rules::from_yaml("new.yaml");
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let rules = Rules::from_yaml("new.yaml")?;
     for line in io::stdin().lock().lines() {
         let mut files = Vec::new();
         for word in line.unwrap().split(' ') {
@@ -40,19 +40,18 @@ fn main() {
         let graph = analyzer.graph();
         eprintln!("{}", graph.dump());
 
-        let paths = graph.crawl_sinks(&rules);
+        let paths = graph.match_rules(&rules);
         println!("---");
         for path in paths.iter() {
-            if graph.test_path(&rules, &path) {
-                let filename = path.first().unwrap().filename();
-                println!("file: {}", filename);
-                println!("type: 'sqli'");
-                println!("path:");
-                for vert in path.iter() {
-                    println!("  - {}", vert.to_string());
-                }
-                println!("---");
+            let filename = path.first().unwrap().filename();
+            println!("file: {}", filename);
+            println!("type: 'sqli'");
+            println!("path:");
+            for vert in path.iter() {
+                println!("  - {}", vert.to_string());
             }
+            println!("---");
         }
     }
+    Ok(())
 }
