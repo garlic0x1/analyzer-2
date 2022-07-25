@@ -2,11 +2,10 @@
 $input = unknown($_GET[0]);
 $value = $_GET;
 if (false) {
-	$value = intal($input);
+	$value = json_encode($input);
 }
-query($value);
+echo $value;
 $value = $input . "aaa";
-//flag_query($value);
 
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 

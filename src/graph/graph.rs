@@ -2,7 +2,7 @@ use super::rules::{Rules, Vuln};
 use super::vertex::*;
 use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct Graph<'a> {
     nodes: HashMap<Cursor<'a>, Vertex<'a>>,
@@ -37,8 +37,8 @@ impl<'a> Graph<'a> {
         !known
     }
 
-    pub fn match_rules(&self, ruleset: &Rules) -> Vec<Vec<Cursor>> {
-        let mut results = Vec::new();
+    pub fn match_rules(&self, ruleset: &Rules) -> HashSet<Vec<Cursor>> {
+        let mut results = HashSet::new();
 
         for (k, v) in self.nodes.iter() {
             for (parent, path) in v.parents().iter() {
@@ -57,8 +57,8 @@ impl<'a> Graph<'a> {
         results
     }
 
-    fn crawl(&self, vuln: &Vuln, stack: Vec<Cursor<'a>>) -> Vec<Vec<Cursor>> {
-        let mut results = Vec::new();
+    fn crawl(&self, vuln: &Vuln, stack: Vec<Cursor<'a>>) -> HashSet<Vec<Cursor>> {
+        let mut results = HashSet::new();
         let mut stack = stack.clone();
 
         if let Some(last) = stack.last() {
@@ -70,7 +70,7 @@ impl<'a> Graph<'a> {
                         let name = segment.name().unwrap_or_default();
                         let kind = segment.kind().to_string();
                         if vuln.has_source(&name) || vuln.has_source(&kind) {
-                            results.push(stack.clone());
+                            results.insert(stack.clone());
                         }
                         if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
                             sanitized = true;
@@ -79,7 +79,7 @@ impl<'a> Graph<'a> {
                     }
                     if !sanitized {
                         if vuln.has_source(&path.source().name) {
-                            results.push(stack.clone());
+                            results.insert(stack.clone());
                         }
                         stack.push(parent.clone());
                         results.extend(self.crawl(vuln, stack.clone()));
@@ -92,7 +92,7 @@ impl<'a> Graph<'a> {
                         let name = segment.name().unwrap_or_default();
                         let kind = segment.kind().to_string();
                         if vuln.has_source(&name) || vuln.has_source(&kind) {
-                            results.push(stack.clone());
+                            results.insert(stack.clone());
                         }
                         if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
                             sanitized = true;
@@ -101,7 +101,7 @@ impl<'a> Graph<'a> {
                     }
 
                     if !sanitized && vuln.has_source(&path.source().name) {
-                        results.push(stack.clone());
+                        results.insert(stack.clone());
                     }
                 }
             }
