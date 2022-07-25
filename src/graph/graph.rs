@@ -63,6 +63,7 @@ impl<'a> Graph<'a> {
 
         if let Some(last) = stack.last() {
             if let Some(vert) = self.nodes.get(last) {
+                println!("crawling {}", last.to_str());
                 for (parent, path) in vert.parents().iter() {
                     let mut sanitized = false;
                     for segment in path.segments() {
@@ -77,12 +78,16 @@ impl<'a> Graph<'a> {
                         }
                     }
                     if !sanitized {
+                        if vuln.has_source(&path.source().name) {
+                            results.push(stack.clone());
+                        }
                         stack.push(parent.clone());
                         results.extend(self.crawl(vuln, stack.clone()));
                         stack.pop();
                     }
                 }
                 for (_, path) in vert.sources().iter() {
+                    let mut sanitized = false;
                     for segment in path.segments() {
                         let name = segment.name().unwrap_or_default();
                         let kind = segment.kind().to_string();
@@ -90,8 +95,13 @@ impl<'a> Graph<'a> {
                             results.push(stack.clone());
                         }
                         if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
+                            sanitized = true;
                             break;
                         }
+                    }
+
+                    if !sanitized && vuln.has_source(&path.source().name) {
+                        results.push(stack.clone());
                     }
                 }
             }
