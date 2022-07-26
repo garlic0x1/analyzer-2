@@ -41,7 +41,7 @@ impl<'a> Graph<'a> {
         let mut results = HashSet::new();
 
         for (k, v) in self.nodes.iter() {
-            for (_, path) in v.parents().iter() {
+            for (_, path) in v.parents().iter().chain(v.sources().iter()) {
                 for segment in path.segments() {
                     let name = segment.name().unwrap_or_default();
                     let kind = segment.kind().to_string();

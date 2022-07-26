@@ -1,5 +1,6 @@
 <?php
 $input = (int) unknown($_GET[0]);
+
 $value = $_GET;
 if (false) {
 	$value = json_ncode($input);
@@ -26,5 +27,6 @@ add_action("test1");
 $newval = test($value, $filtered);
 $newval2 = test($_GET[], $filtered);
 query($newval);
+query($_GET[]);
 $notaint = test();
 ?>

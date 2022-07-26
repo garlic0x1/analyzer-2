@@ -136,13 +136,6 @@ impl<'a> Analyzer<'a> {
                         "function_call_expression"
                         | "member_call_expression"
                         | "scoped_call_expression" => {
-                            /*
-                            for t in self.taints.returns().iter() {
-                                if self.trace(cur.clone(), t.clone()) {
-                                    returns = true;
-                                }
-                            }
-                            */
                             if let Some(n) = cur.name() {
                                 self.call(cur.clone(), None, None, None);
                                 // if not recursive, jump
