@@ -1,16 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-// a set of rules to alert for
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Rules {
-    // sinks and their data
-    vulns: HashMap<String, Vuln>,
-    // sources just to get the analyzer started
-    sources: HashSet<String>,
-    hooks: HashSet<String>,
-}
-
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Vuln {
     sinks: HashMap<String, Option<Vec<u32>>>,
@@ -45,6 +35,16 @@ impl Vuln {
     pub fn has_sanitizer(&self, sanitizer: &String) -> bool {
         self.sanitizers.contains_key(sanitizer)
     }
+}
+
+// a set of rules to alert for
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct Rules {
+    // sinks and their data
+    vulns: HashMap<String, Vuln>,
+    // sources just to get the analyzer started
+    sources: HashSet<String>,
+    hooks: HashSet<String>,
 }
 
 impl Rules {

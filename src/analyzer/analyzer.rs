@@ -114,11 +114,12 @@ impl<'a> Analyzer<'a> {
                             // check for taint and trace
                             if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
                                 let cur_scope = Scope::new(cur.clone());
-                                //eprintln!("testing {:?}", t);
                                 if cur_scope.contains(&t.scope) {
                                     if self.trace(cur.clone(), t) {
                                         returns = true;
                                     }
+                                } else {
+                                    eprintln!("not in scope");
                                 }
                             }
                         }
@@ -142,10 +143,12 @@ impl<'a> Analyzer<'a> {
                                 }
                             }
                             */
-                            self.jump(&cur.name().unwrap());
-                            // if not recursive, jump
-                            if self.hooks.contains(&cur.name().unwrap()) {
-                                self.handle_hook(cur);
+                            if let Some(n) = cur.name() {
+                                self.call(cur.clone(), None, None, None);
+                                // if not recursive, jump
+                                if self.hooks.contains(&n) {
+                                    self.handle_hook(cur);
+                                }
                             }
                         }
                         "if_statement" => {
@@ -161,26 +164,79 @@ impl<'a> Analyzer<'a> {
     }
 
     /// push ctx to stack and enter new frame, returns true if there are taints.
-    fn jump(&mut self, name: &str) {
-        if let Some(resolved) = self.resolved.clone().get(name) {
-            if self.context.push(Context::new(
-                resolved.cursor().kind().to_string(),
-                resolved.name(),
-            )) {
-                //eprintln!("jumping to {}", resolved.name());
-                self.traverse(resolved.cursor());
-                self.context.pop();
+    fn call(
+        &mut self,
+        cursor: Cursor<'a>,
+        index: Option<usize>,
+        source: Option<&Taint>,
+        path: Option<Vec<Cursor<'a>>>,
+    ) {
+        let name = match cursor.name() {
+            Some(name) => name,
+            None => cursor.to_string().replace("\"", "").replace("'", ""),
+        };
+        println!("calling: {name}");
+        if let Some(resolved) = self.resolved.clone().get(&name) {
+            // passing taint into param
+            if let Some(index) = index {
+                if let Some(param_cur) = resolved.parameters().get(index) {
+                    if self.context.push(Context::new(
+                        resolved.cursor().kind().to_string(),
+                        resolved.cursor().name().unwrap(),
+                    )) {
+                        let param_taint = Taint::new_param(param_cur.clone());
+                        //push
+                        self.push_taint(
+                            param_cur.clone(),
+                            source.unwrap().clone(),
+                            param_taint,
+                            path.unwrap(),
+                        );
+                        // traverse and see if it has tainted return
+                        let mut res_cur = resolved.cursor();
+                        res_cur.goto_field("body");
+                        let cont = self.traverse(res_cur);
+
+                        //pop
+                        self.taints.clear_scope(&Scope::new(param_cur.clone()));
+                        self.graph.clear_scope(&Scope::new(param_cur.clone()));
+                        self.context.pop();
+                        if cont {
+                            for ret in self.taints.returns() {
+                                self.trace(cursor.clone(), ret);
+                            }
+                        }
+                        self.taints.clear_returns();
+                        self.graph.clear_returns();
+                    }
+                }
+            } else {
+                // simple jump dont pass a taint
+                if self.context.push(Context::new(
+                    resolved.cursor().kind().to_string(),
+                    resolved.name(),
+                )) {
+                    eprintln!("call to {}", resolved.name());
+                    let mut res_cur = resolved.cursor();
+                    res_cur.goto_field("body");
+                    self.traverse(res_cur);
+                    self.context.pop();
+                }
             }
         }
     }
 
     fn handle_hook(&mut self, cursor: Cursor<'a>) {
-        for motion in cursor.traverse() {
+        eprintln!("handling hook, {}", cursor.to_str());
+        let mut cursor = cursor;
+        cursor.goto_field("arguments");
+        let mut traversal = Traversal::new(&cursor);
+        while let Some(motion) = traversal.next() {
             if let Order::Enter(cur) = motion {
+                eprintln!("{}", cur.kind());
                 if cur.kind() == "argument" {
                     if cur.to_string().len() > 2 {
-                        let name = &cur.to_string()[1..cur.to_string().len() - 1];
-                        self.jump(name);
+                        self.call(cur.clone(), None, None, None);
                     }
                 }
             }
@@ -212,8 +268,8 @@ impl<'a> Analyzer<'a> {
                     break;
                 }
                 "expression_statement" => break,
-                // record index
                 "argument" => {
+                    // record index
                     index = cur.get_index();
                 }
                 "assignment_expression" => {
@@ -226,52 +282,9 @@ impl<'a> Analyzer<'a> {
                 "function_call_expression"
                 | "member_call_expression"
                 | "scoped_call_expression" => {
-                    if let Some(resolved) = self.resolved.clone().get(&cur.name().unwrap()) {
-                        let resolved = resolved.clone();
-                        let params = resolved.parameters().clone();
-                        if let Some(param_cur) = params.get(index) {
-                            let param_taint = Taint::new_param(param_cur.clone());
-                            path.push(cur.clone());
-
-                            if !self.context.push(Context::new(
-                                resolved.cursor().kind().to_string(),
-                                resolved.cursor().name().unwrap(),
-                            )) {
-                                continue;
-                            }
-
-                            //push
-                            self.push_taint(
-                                param_cur.clone(),
-                                source.clone(),
-                                param_taint,
-                                path.clone(),
-                            );
-                            // traverse and see if it has tainted return
-                            let mut res_cur = resolved.cursor();
-                            res_cur.goto_field("body");
-                            let cont = self.traverse(res_cur);
-
-                            //pop
-                            self.taints.clear_scope(&Scope::new(param_cur.clone()));
-                            self.graph.clear_scope(&Scope::new(param_cur.clone()));
-                            self.context.pop();
-
-                            if cont {
-                                for ret in self.taints.returns() {
-                                    self.trace(cur.clone(), ret);
-                                }
-                            }
-                            self.taints.clear_returns();
-                            self.graph.clear_returns();
-                            break;
-                        } else {
-                            eprintln!("could not find matching param: {}", resolved.name());
-                        }
-                    } else {
-                        path.push(cur);
-                        push_path = true;
-                    }
+                    path.push(cur.clone());
+                    self.call(cur, Some(index), Some(&source), Some(path.clone()));
+                    push_path = true;
                 }
                 // special sinks
                 "echo_statement" => {
@@ -306,8 +319,9 @@ impl<'a> Analyzer<'a> {
                 if let Order::Enter(cur) = motion.clone() {
                     match cur.kind() {
                         "function_definition" | "method_declaration" => {
-                            self.resolved
-                                .insert(cur.name().unwrap(), Resolved::new_function(cur));
+                            if let Some(n) = cur.name() {
+                                self.resolved.insert(n, Resolved::new_function(cur));
+                            }
                         }
                         "program" => {
                             self.resolved
