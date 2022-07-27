@@ -36,24 +36,14 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    /// first resolves names
-    /// then begins traversal
-    pub fn analyze(&mut self) {
+    /// analyze repository and produce a flow graph
+    pub fn graph(&mut self) -> &Graph<'a> {
         self.resolve_files();
 
-        let mut cursors = Vec::new();
-        for file in self.files.iter() {
-            let cur = Cursor::from_file(file);
-            cursors.push(cur);
+        for file in self.files.clone() {
+            self.traverse(Cursor::from_file(file));
         }
 
-        for cur in cursors {
-            self.traverse(cur);
-        }
-    }
-
-    /// returns graph ( you must run analyze() first to populate it )
-    pub fn graph(&'a self) -> &'a Graph<'a> {
         &self.graph
     }
 
@@ -61,8 +51,10 @@ impl<'a> Analyzer<'a> {
     /// Optionally returns a taint with the function
     fn traverse(&mut self, cursor: Cursor<'a>) -> bool {
         let mut returns = false;
+
         let mut traversal =
             Traversal::new_block(&cursor, vec!["method_declaration", "function_definition"]);
+
         while let Some(motion) = traversal.next() {
             match motion {
                 Order::Enter(cur) => {
@@ -109,29 +101,25 @@ impl<'a> Analyzer<'a> {
 
     /// trace taints up the tree
     fn trace(&mut self, cursor: Cursor<'a>, source: Taint) -> bool {
-        //let mut path = vec![cursor.clone()];
         let mut path = Vec::new();
         let mut index: usize = 0;
 
         let mut tracer = Trace::new(cursor);
+
         while let Some(cur) = tracer.next() {
+            // dont trace through boolean conditions
             if let Some(s) = cur.field() {
                 if s == "condition" {
                     break;
                 }
             }
             match cur.kind() {
-                "return_statement" => {
-                    let assign = Taint::new_return(cur.clone());
-                    path.push(cur.clone());
-                    self.push_taint(cur.clone(), source.clone(), assign, path.clone());
-                    return true;
-                }
-                "assignment_expression" => {
-                    let assign = Taint::new_variable(cur.clone());
-                    path.push(cur.clone());
-                    self.push_taint(cur.clone(), source.clone(), assign, path.clone());
-                    return false;
+                "return_statement" | "assignment_expression" => {
+                    if let Ok(assign) = Taint::from_trace(cur.clone()) {
+                        path.push(cur.clone());
+                        self.push_taint(cur.clone(), source.clone(), assign, path.clone());
+                        return true;
+                    }
                 }
                 "function_call_expression"
                 | "member_call_expression"
@@ -141,7 +129,7 @@ impl<'a> Analyzer<'a> {
                 }
                 "echo_statement" => path.push(cur),
                 "argument" => index = cur.get_index(),
-                //"expression_statement" => break,
+                "expression_statement" => break,
                 _ => (),
             }
         }
@@ -205,7 +193,8 @@ impl<'a> Analyzer<'a> {
                     }
                 }
             } else {
-                // simple jump dont pass a taint
+                // simple jump dont pass a taint or clear after
+                // (all calls to that block should taint same stuff with no input)
                 if self.context.push(Context::new(
                     resolved.cursor().kind().to_string(),
                     resolved.name(),
@@ -219,6 +208,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
+    /// get a taint associated with this cursor
     fn get_taint(&self, cursor: Cursor<'a>) -> Option<Taint> {
         match cursor.kind() {
             "variable_name" => {
@@ -250,6 +240,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
+    /// call functions that are hooked
     fn handle_hook(&mut self, cursor: Cursor<'a>) {
         let mut cursor = cursor;
         cursor.goto_field("arguments");
@@ -265,7 +256,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    // create taint and graph it
+    /// create taint and graph it
     fn push_taint(&mut self, cur: Cursor<'a>, source: Taint, assign: Taint, path: Vec<Cursor<'a>>) {
         self.taints.push(assign.clone());
         let pitem = PathItem::new(source.clone(), path);

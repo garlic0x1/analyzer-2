@@ -30,6 +30,14 @@ impl Taint {
         }
     }
 
+    pub fn from_trace(cursor: Cursor) -> Result<Self, &str> {
+        match cursor.kind() {
+            "return_statement" => Ok(Taint::new_return(cursor)),
+            "assignment_expression" => Ok(Taint::new_variable(cursor)),
+            _ => Err("not a valid trace taint"),
+        }
+    }
+
     pub fn new_variable(cursor: Cursor) -> Self {
         Self {
             kind: TaintKind::Variable,

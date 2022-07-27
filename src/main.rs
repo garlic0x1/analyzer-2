@@ -5,6 +5,7 @@ use tree::file::*;
 
 pub mod analyzer;
 pub mod graph;
+pub mod repository;
 pub mod tree;
 pub mod utils;
 
@@ -35,10 +36,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // create analyzer
         let mut analyzer = Analyzer::new(file_refs, &rules);
-        // perform analysis
-        eprintln!("analyzing tree");
-        analyzer.analyze();
         // get populated flow graph
+        eprintln!("analyzing tree");
         let graph = analyzer.graph();
         eprintln!("{}", graph.dump());
 
