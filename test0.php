@@ -20,7 +20,7 @@ function test($p1, $p2) {
 function test1($p1, $p2) {
 	$local_var = $p2;	
 	//return ($p1);
-	query($_GET[]);
+	query($_GET);
 }
 
 add_action("test1");

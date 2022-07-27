@@ -68,28 +68,9 @@ impl<'a> Analyzer<'a> {
                 Order::Enter(cur) => {
                     match cur.kind() {
                         "variable_name" => {
-                            // check if in left of assignment and return
-                            if let Some(s) = cur.field() {
-                                if s == "left" {
-                                    let mut pcur = cur.clone();
-                                    pcur.goto_parent();
-                                    if pcur.kind() == "assignment_expression" {
-                                        continue;
-                                    }
-                                }
-                                if s == "object" {
-                                    continue;
-                                }
-                            }
-                            // check for taint and trace
-                            if let Some(t) = self.taints.get(&Taint::new_variable(cur.clone())) {
-                                let cur_scope = Scope::new(cur.clone());
-                                if cur_scope.contains(&t.scope) {
-                                    if self.trace(cur.clone(), t) {
-                                        returns = true;
-                                    }
-                                } else {
-                                    eprintln!("not in scope");
+                            if let Some(taint) = self.get_taint(cur.clone()) {
+                                if self.trace(cur.clone(), taint) {
+                                    returns = true;
                                 }
                             }
                         }
@@ -130,8 +111,6 @@ impl<'a> Analyzer<'a> {
     fn trace(&mut self, cursor: Cursor<'a>, source: Taint) -> bool {
         //let mut path = vec![cursor.clone()];
         let mut path = Vec::new();
-        let mut has_return = false;
-        let mut push_path = false;
         let mut index: usize = 0;
 
         let mut tracer = Trace::new(cursor);
@@ -146,47 +125,33 @@ impl<'a> Analyzer<'a> {
                     let assign = Taint::new_return(cur.clone());
                     path.push(cur.clone());
                     self.push_taint(cur.clone(), source.clone(), assign, path.clone());
-                    has_return = true;
-                    push_path = false;
-                    break;
-                }
-                "expression_statement" => break,
-                "argument" => {
-                    // record index
-                    index = cur.get_index();
+                    return true;
                 }
                 "assignment_expression" => {
                     let assign = Taint::new_variable(cur.clone());
                     path.push(cur.clone());
                     self.push_taint(cur.clone(), source.clone(), assign, path.clone());
-                    push_path = false;
-                    break;
+                    return false;
                 }
                 "function_call_expression"
                 | "member_call_expression"
                 | "scoped_call_expression" => {
                     path.push(cur.clone());
                     self.call(cur, Some(index), Some(source.clone()), Some(path.clone()));
-                    push_path = true;
                 }
-                // special sinks
-                "echo_statement" => {
-                    path.push(cur);
-                    push_path = true;
-                    break;
-                }
+                "echo_statement" => path.push(cur),
+                "argument" => index = cur.get_index(),
+                //"expression_statement" => break,
                 _ => (),
             }
         }
-        if push_path {
-            if let Some(cur) = path.clone().last() {
-                let pitem = PathItem::new(source.clone(), path);
-                let vert = Vertex::new(None, self.context.clone());
-                self.graph.push(pitem, cur.clone(), vert);
-            }
+        if let Some(cur) = path.clone().last() {
+            let pitem = PathItem::new(source.clone(), path);
+            let vert = Vertex::new(None, self.context.clone());
+            self.graph.push(pitem, cur.clone(), vert);
         }
 
-        has_return
+        false
     }
 
     /// push ctx to stack and enter new frame, returns true if there are taints.
@@ -251,6 +216,37 @@ impl<'a> Analyzer<'a> {
                     self.context.pop();
                 }
             }
+        }
+    }
+
+    fn get_taint(&self, cursor: Cursor<'a>) -> Option<Taint> {
+        match cursor.kind() {
+            "variable_name" => {
+                // check if in left of assignment and return
+                if let Some(s) = cursor.field() {
+                    if s == "left" {
+                        let mut pcur = cursor.clone();
+                        pcur.goto_parent();
+                        if pcur.kind() == "assignment_expression" {
+                            return None;
+                        }
+                    }
+                    if s == "object" {
+                        return None;
+                    }
+                }
+                // check for taint
+                if let Some(taint) = self.taints.get(&Taint::new_variable(cursor.clone())) {
+                    // check if in scope
+                    let cur_scope = Scope::new(cursor.clone());
+                    if cur_scope.contains(&taint.scope) {
+                        return Some(taint);
+                    }
+                }
+
+                None
+            }
+            _ => None,
         }
     }
 
