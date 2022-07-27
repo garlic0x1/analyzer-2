@@ -7,6 +7,7 @@ if (false) {
 }
 echo $value;
 $value = $input . "aaa";
+echo $value;
 
 $filtered = "abcdefg" . unknown(htmlspecialchars($input));
 

@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("{}", dumper.dump());
 
         // create analyzer
-        let mut analyzer = Analyzer::from_ruleset(file_refs, &rules);
+        let mut analyzer = Analyzer::new(file_refs, &rules);
         // perform analysis
         eprintln!("analyzing tree");
         analyzer.analyze();

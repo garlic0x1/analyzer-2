@@ -20,41 +20,11 @@ pub struct Analyzer<'a> {
 }
 
 impl<'a> Analyzer<'a> {
-    pub fn new(files: Vec<&'a File>, rules: Rules) -> Self {
+    pub fn new(files: Vec<&'a File>, ruleset: &Rules) -> Self {
         let mut taints = TaintList::new();
-        let mut hooks = HashSet::new();
-        for source in rules.sources() {
+        for source in ruleset.sources().iter() {
             taints.push(Taint::new_source(source.to_string()));
         }
-        for hook in rules.hooks() {
-            hooks.insert(hook.to_string());
-        }
-
-        Self {
-            taints: TaintList::new(),
-            context: ContextStack::new(),
-            files,
-            resolved: HashMap::new(),
-            graph: Graph::new(),
-            hooks,
-        }
-    }
-
-    pub fn from_ruleset(files: Vec<&'a File>, ruleset: &Rules) -> Self {
-        let mut sources = Vec::new();
-        for source in ruleset.sources().iter() {
-            sources.push(source.to_string());
-        }
-        Analyzer::from_sources(files, sources)
-    }
-
-    /// returns a new analyzer with sources to trace
-    pub fn from_sources(files: Vec<&'a File>, sources: Vec<String>) -> Self {
-        let mut taints = TaintList::new();
-        for source in sources {
-            taints.push(Taint::new_source(source.clone()));
-        }
-        let hooks: HashSet<String> = vec!["add_action".to_string()].into_iter().collect();
 
         Self {
             files,
@@ -62,7 +32,7 @@ impl<'a> Analyzer<'a> {
             context: ContextStack::new(),
             resolved: HashMap::new(),
             graph: Graph::new(),
-            hooks,
+            hooks: ruleset.hooks().clone(),
         }
     }
 
@@ -156,82 +126,6 @@ impl<'a> Analyzer<'a> {
         returns
     }
 
-    /// push ctx to stack and enter new frame, returns true if there are taints.
-    fn call(
-        &mut self,
-        cursor: Cursor<'a>,
-        index: Option<usize>,
-        source: Option<&Taint>,
-        path: Option<Vec<Cursor<'a>>>,
-    ) {
-        let name = match cursor.name() {
-            Some(name) => name,
-            None => cursor.to_string().replace("\"", "").replace("'", ""),
-        };
-        if let Some(resolved) = self.resolved.clone().get(&name) {
-            // passing taint into param
-            if let Some(index) = index {
-                if let Some(param_cur) = resolved.parameters().get(index) {
-                    if self.context.push(Context::new(
-                        resolved.cursor().kind().to_string(),
-                        resolved.cursor().name().unwrap(),
-                    )) {
-                        let param_taint = Taint::new_param(param_cur.clone());
-                        //push
-                        self.push_taint(
-                            param_cur.clone(),
-                            source.unwrap().clone(),
-                            param_taint,
-                            path.unwrap(),
-                        );
-                        // traverse and see if it has tainted return
-                        let mut res_cur = resolved.cursor();
-                        res_cur.goto_field("body");
-                        let cont = self.traverse(res_cur);
-
-                        //pop
-                        self.taints.clear_scope(&Scope::new(param_cur.clone()));
-                        self.graph.clear_scope(&Scope::new(param_cur.clone()));
-                        self.context.pop();
-                        if cont {
-                            for ret in self.taints.returns() {
-                                self.trace(cursor.clone(), ret);
-                            }
-                        }
-                        self.taints.clear_returns();
-                        self.graph.clear_returns();
-                    }
-                }
-            } else {
-                // simple jump dont pass a taint
-                if self.context.push(Context::new(
-                    resolved.cursor().kind().to_string(),
-                    resolved.name(),
-                )) {
-                    let mut res_cur = resolved.cursor();
-                    res_cur.goto_field("body");
-                    self.traverse(res_cur);
-                    self.context.pop();
-                }
-            }
-        }
-    }
-
-    fn handle_hook(&mut self, cursor: Cursor<'a>) {
-        let mut cursor = cursor;
-        cursor.goto_field("arguments");
-        let mut traversal = Traversal::new(&cursor);
-        while let Some(motion) = traversal.next() {
-            if let Order::Enter(cur) = motion {
-                if cur.kind() == "argument" {
-                    if cur.to_string().len() > 2 {
-                        self.call(cur.clone(), None, None, None);
-                    }
-                }
-            }
-        }
-    }
-
     /// trace taints up the tree
     fn trace(&mut self, cursor: Cursor<'a>, source: Taint) -> bool {
         //let mut path = vec![cursor.clone()];
@@ -272,7 +166,7 @@ impl<'a> Analyzer<'a> {
                 | "member_call_expression"
                 | "scoped_call_expression" => {
                     path.push(cur.clone());
-                    self.call(cur, Some(index), Some(&source), Some(path.clone()));
+                    self.call(cur, Some(index), Some(source.clone()), Some(path.clone()));
                     push_path = true;
                 }
                 // special sinks
@@ -295,6 +189,87 @@ impl<'a> Analyzer<'a> {
         has_return
     }
 
+    /// push ctx to stack and enter new frame, returns true if there are taints.
+    fn call(
+        &mut self,
+        cursor: Cursor<'a>,
+        index: Option<usize>,
+        source: Option<Taint>,
+        path: Option<Vec<Cursor<'a>>>,
+    ) {
+        let name = match cursor.name() {
+            Some(name) => name,
+            None => cursor.to_string().replace("\"", "").replace("'", ""),
+        };
+        if let Some(resolved) = self.resolved.clone().get(&name) {
+            // passing taint into param
+            if let Some(index) = index {
+                if let Some(param_cur) = resolved.parameters().get(index) {
+                    if self.context.push(Context::new(
+                        resolved.cursor().kind().to_string(),
+                        resolved.cursor().name().unwrap(),
+                    )) {
+                        // push taint
+                        self.push_taint(
+                            param_cur.clone(),
+                            source.unwrap(),
+                            Taint::new_param(param_cur.clone()),
+                            path.unwrap(),
+                        );
+
+                        // traverse and see if it has tainted return
+                        let mut res_cur = resolved.cursor();
+                        res_cur.goto_field("body");
+                        let cont = self.traverse(res_cur);
+                        self.context.pop();
+
+                        // clear local taints and graph leaves
+                        self.taints.clear_scope(&Scope::new(param_cur.clone()));
+                        self.graph.clear_scope(&Scope::new(param_cur.clone()));
+
+                        // trace from here if taint is returned
+                        if cont {
+                            for ret in self.taints.returns() {
+                                self.trace(cursor.clone(), ret);
+                            }
+                        }
+
+                        // clear return taints and graph leaves
+                        self.taints.clear_returns();
+                        self.graph.clear_returns();
+                    }
+                }
+            } else {
+                // simple jump dont pass a taint
+                if self.context.push(Context::new(
+                    resolved.cursor().kind().to_string(),
+                    resolved.name(),
+                )) {
+                    let mut res_cur = resolved.cursor();
+                    res_cur.goto_field("body");
+                    self.traverse(res_cur);
+                    self.context.pop();
+                }
+            }
+        }
+    }
+
+    fn handle_hook(&mut self, cursor: Cursor<'a>) {
+        let mut cursor = cursor;
+        cursor.goto_field("arguments");
+        let mut traversal = Traversal::new(&cursor);
+        while let Some(motion) = traversal.next() {
+            if let Order::Enter(cur) = motion {
+                if cur.kind() == "argument" {
+                    if cur.to_string().len() > 2 {
+                        self.call(cur.clone(), None, None, None);
+                    }
+                }
+            }
+        }
+    }
+
+    // create taint and graph it
     fn push_taint(&mut self, cur: Cursor<'a>, source: Taint, assign: Taint, path: Vec<Cursor<'a>>) {
         self.taints.push(assign.clone());
         let pitem = PathItem::new(source.clone(), path);
@@ -302,6 +277,7 @@ impl<'a> Analyzer<'a> {
             .push(pitem, cur, Vertex::new(Some(assign), self.context.clone()));
     }
 
+    /// load resolved items to analyzer
     fn resolve_files(&mut self) {
         for file in self.files.iter() {
             for motion in file.traverse() {

@@ -42,7 +42,6 @@ impl<'a> Resolved<'a> {
                         }
                     }
                 }
-                eprintln!("params {:?}", v);
 
                 v
             }
