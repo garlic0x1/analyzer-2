@@ -143,8 +143,15 @@ impl<'a> Graph<'a> {
                 for (parent, path) in vert.parents().iter() {
                     let mut sanitized = false;
                     for segment in path.segments() {
-                        let name = segment.name().unwrap_or_default();
                         let kind = segment.kind().to_string();
+                        let name = match segment.kind() {
+                            "cast_type" => {
+                                let s = format!("({})", segment.to_str());
+                                println!("cast type {s}");
+                                s
+                            }
+                            _ => segment.name().unwrap_or_default(),
+                        };
                         if vuln.has_source(&name) || vuln.has_source(&kind) {
                             results.insert(stack.clone());
                         }
@@ -165,8 +172,15 @@ impl<'a> Graph<'a> {
                 for (_, path) in vert.sources().iter() {
                     let mut sanitized = false;
                     for segment in path.segments() {
-                        let name = segment.name().unwrap_or_default();
                         let kind = segment.kind().to_string();
+                        let name = match segment.kind() {
+                            "cast_type" => {
+                                let s = format!("({})", segment.to_str());
+                                println!("cast type {s}");
+                                s
+                            }
+                            _ => segment.name().unwrap_or_default(),
+                        };
                         if vuln.has_source(&name) || vuln.has_source(&kind) {
                             results.insert(stack.clone());
                         }

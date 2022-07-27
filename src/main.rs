@@ -3,9 +3,9 @@ use graph::rules::*;
 use std::{io, io::prelude::*};
 use tree::file::*;
 
+//pub mod repository;
 pub mod analyzer;
 pub mod graph;
-pub mod repository;
 pub mod tree;
 pub mod utils;
 

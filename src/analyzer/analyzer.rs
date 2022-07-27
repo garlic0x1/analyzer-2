@@ -126,6 +126,12 @@ impl<'a> Analyzer<'a> {
                         return true;
                     }
                 }
+                "cast_expression" => {
+                    let mut type_node = cur.clone();
+                    type_node.goto_field("type");
+                    println!("cast expr {}", type_node.kind());
+                    path.push(type_node);
+                }
                 "function_call_expression"
                 | "member_call_expression"
                 | "scoped_call_expression" => {
