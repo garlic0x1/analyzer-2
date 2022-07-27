@@ -172,18 +172,18 @@ impl<'a> Analyzer<'a> {
         if let Some(resolved) = self.resolved.clone().get(&name) {
             passes_taint = false;
             // passing taint into param
-            if let Some(index) = index {
+            if let (Some(index), Some(source), Some(path)) = (index, source, path) {
                 if let Some(param_cur) = resolved.parameters().get(index) {
                     if self.context.push(Context::new(
                         resolved.cursor().kind().to_string(),
-                        resolved.cursor().name().unwrap(),
+                        resolved.cursor().name().unwrap_or_default(),
                     )) {
                         // push taint
                         self.push_taint(
                             param_cur.clone(),
-                            source.unwrap(),
+                            source,
                             Taint::new_param(param_cur.clone()),
-                            path.unwrap(),
+                            path,
                         );
 
                         // traverse and see if it has tainted return
