@@ -93,6 +93,10 @@ impl<'a> Graph<'a> {
     }
 
     /// get rid of returns after using them, since they have global scope
+
+    //
+    // NEED TO IMPROVE THIS, SECOND CALL OF FUNC DOESNT RETURN TAINT
+    //
     pub fn clear_returns(&mut self) {
         for (t, v) in self.leaves.iter_mut() {
             if t.kind == TaintKind::Return {
