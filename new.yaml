@@ -3,6 +3,84 @@ sources: []
 # specify what functions can hook other functions
 hooks: ["add_action"]
 vulns:
+  "lfd":
+    sources:
+      - "_GET"
+      - "_POST"
+      - "_SERVER"
+      - "_REQUEST"
+      - "_COOKIE"
+      - "_SESSION"
+      - "_FILES"
+      - "phperrormessge"
+    sinks:
+      "bzread":
+      "bzflush":
+      "dio_read":
+      "eio_readdir":
+      "fdf_open":
+      "file":
+      "file_get_contents":
+      "finfo_file":
+      "fflush":
+      "fgetc":
+      "fgetcsv":
+      "fgets":
+      "fgetss":
+      "fread":
+      "fpassthru":
+      "fscanf":
+      "ftok":
+      "get_meta_tags":
+      "glob":
+      "gzfile":
+      "gzgetc":
+      "gzgets":
+      "gzgetss":
+      "gzread":
+      "gzpassthru":
+      "highlight_file":
+      "imagecreatefrompng":
+      "imagecreatefromjpg":
+      "imagecreatefromgif":
+      "imagecreatefromgd2":
+      "imagecreatefromgd2part":
+      "imagecreatefromgd":
+      "opendir":
+      "parse_ini_file":
+      "php_strip_whitespace":
+      "readfile":
+      "readgzfile":
+      "readlink":
+      "scandir":
+      "show_source":
+      "simplexml_load_file":
+      "stream_get_contents":
+      "stream_get_line":
+      "xdiff_file_bdiff":
+      "xdiff_file_bpatch":
+      "xdiff_file_diff_binary":
+      "xdiff_file_diff":
+      "xdiff_file_merge3":
+      "xdiff_file_patch_binary":
+      "xdiff_file_patch":
+      "xdiff_file_rabdiff":
+      "yaml_parse_file":
+      "zip_open":
+    sanitizers:
+      "json_encode":
+      "wp_hash_password":
+      "empty":
+      "htmlspecialchars":
+      "htmlentities":
+      "highlight_string":
+      "urlencode":
+      "(int)":
+      "(bool)":
+      "(double)":
+      "unset":
+      "intval":
+      "absint": null
   "sqli":
     sources:
       - "_GET"

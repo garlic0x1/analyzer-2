@@ -168,7 +168,6 @@ impl<'a> Analyzer<'a> {
             Some(name) => name,
             None => cursor.to_string().replace("\"", "").replace("'", ""),
         };
-        println!("calling: {name}");
         if let Some(resolved) = self.resolved.clone().get(&name) {
             // passing taint into param
             if let Some(index) = index {
@@ -209,7 +208,6 @@ impl<'a> Analyzer<'a> {
                     resolved.cursor().kind().to_string(),
                     resolved.name(),
                 )) {
-                    eprintln!("call to {}", resolved.name());
                     let mut res_cur = resolved.cursor();
                     res_cur.goto_field("body");
                     self.traverse(res_cur);
@@ -220,13 +218,11 @@ impl<'a> Analyzer<'a> {
     }
 
     fn handle_hook(&mut self, cursor: Cursor<'a>) {
-        eprintln!("handling hook, {}", cursor.to_str());
         let mut cursor = cursor;
         cursor.goto_field("arguments");
         let mut traversal = Traversal::new(&cursor);
         while let Some(motion) = traversal.next() {
             if let Order::Enter(cur) = motion {
-                eprintln!("{}", cur.kind());
                 if cur.kind() == "argument" {
                     if cur.to_string().len() > 2 {
                         self.call(cur.clone(), None, None, None);

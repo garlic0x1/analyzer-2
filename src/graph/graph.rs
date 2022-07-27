@@ -139,7 +139,7 @@ impl<'a> Graph<'a> {
 
         if let Some(last) = stack.last() {
             if let Some(vert) = self.nodes.get(last) {
-                println!("crawling {}", last.to_str());
+                //println!("crawling {}", last.to_str());
                 for (parent, path) in vert.parents().iter() {
                     let mut sanitized = false;
                     for segment in path.segments() {
