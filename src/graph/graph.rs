@@ -113,7 +113,9 @@ impl<'a> Graph<'a> {
             }
         } else {
             // need to create a parent to the source
-            vertex.add_source(path.segments().last().unwrap().clone(), path.clone());
+            if let Some(source_cur) = path.segments().last() {
+                vertex.add_source(source_cur.clone(), path);
+            }
         }
     }
 
@@ -124,9 +126,10 @@ impl<'a> Graph<'a> {
                 // variabe is already tainted, remove overwritten taints
                 let mut newvec = vec![cursor];
                 for leaf in leaves.iter() {
-                    let leaf_ctx = &self.nodes.get(&leaf).unwrap().context();
-                    if !vertex.context().contains(&leaf_ctx) {
-                        newvec.push(leaf.clone());
+                    if let Some(vert) = self.nodes.get(&leaf) {
+                        if !vertex.context().contains(vert.context()) {
+                            newvec.push(leaf.clone());
+                        }
                     }
                 }
                 self.leaves.insert(assign.clone(), newvec);

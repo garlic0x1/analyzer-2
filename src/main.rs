@@ -24,8 +24,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             } else {
                 eprintln!("reading {}", word);
-                let file = File::new(word);
-                files.push(file);
+                if let Ok(file) = File::new(word) {
+                    files.push(file);
+                }
             }
         }
 

@@ -19,14 +19,18 @@ pub struct Taint {
 }
 
 impl Taint {
-    pub fn new(cursor: Cursor, kind: TaintKind) -> Self {
-        match kind {
-            TaintKind::Return => Taint::new_variable(cursor),
-            _ => Self {
-                kind,
-                name: cursor.name().expect("unnamed taint"),
-                scope: Scope::new(cursor),
-            },
+    pub fn new(cursor: Cursor, kind: TaintKind) -> Result<Self, &str> {
+        if let Some(name) = cursor.name() {
+            match kind {
+                TaintKind::Return => Ok(Taint::new_variable(cursor)),
+                _ => Ok(Self {
+                    kind,
+                    name,
+                    scope: Scope::new(cursor),
+                }),
+            }
+        } else {
+            return Err("unnamed taint");
         }
     }
 

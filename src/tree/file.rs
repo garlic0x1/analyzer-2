@@ -11,14 +11,12 @@ pub struct File {
 }
 
 impl File {
-    pub fn new(name: &str) -> Self {
-        let source = std::fs::read_to_string(name).expect(&format!("no such file {}", name));
+    pub fn new(name: &str) -> Result<Self, Box<dyn Error>> {
+        let source = std::fs::read_to_string(name)?;
         let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_php::language())
-            .expect("Error loading PHP parsing support");
+        parser.set_language(tree_sitter_php::language())?;
         let tree = parser.parse(&source, None).unwrap();
-        File::from_tree(name, tree, source)
+        return Ok(File::from_tree(name, tree, source));
     }
 
     pub fn from_url(url: &str) -> Result<Self, Box<dyn Error>> {
@@ -28,11 +26,9 @@ impl File {
             .build()?;
         let source = client.get(url).send()?.text()?;
         let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_php::language())
-            .expect("Error loading PHP parsing support");
+        parser.set_language(tree_sitter_php::language())?;
         let tree = parser.parse(&source, None).unwrap();
-        Ok(File::from_tree(url, tree, source.clone()))
+        Ok(File::from_tree(url, tree, source))
     }
 
     pub fn from_tree(name: &str, tree: Tree, source: String) -> Self {
