@@ -40,10 +40,12 @@ impl<'a> Analyzer<'a> {
     pub fn graph(&mut self) -> &Graph<'a> {
         self.resolve_files();
 
+        // crawl each file ( since with wordpress these can sometimes still be accessed )
         for file in self.files.clone() {
             self.traverse(Cursor::from_file(file));
         }
 
+        // return graph for applying rules
         &self.graph
     }
 
@@ -59,13 +61,6 @@ impl<'a> Analyzer<'a> {
             match motion {
                 Order::Enter(cur) => {
                     match cur.kind() {
-                        "variable_name" => {
-                            if let Some(taint) = self.get_taint(cur.clone()) {
-                                if self.trace(cur.clone(), taint) {
-                                    returns = true;
-                                }
-                            }
-                        }
                         // push context
                         "if_statement" => {
                             self.context
@@ -76,6 +71,15 @@ impl<'a> Analyzer<'a> {
                 }
                 Order::Leave(cur) => {
                     match cur.kind() {
+                        // trace if taint
+                        "variable_name" => {
+                            if let Some(taint) = self.get_taint(cur.clone()) {
+                                if self.trace(cur.clone(), taint) {
+                                    returns = true;
+                                }
+                            }
+                        }
+                        // call function
                         "function_call_expression"
                         | "member_call_expression"
                         | "scoped_call_expression" => {
@@ -87,6 +91,7 @@ impl<'a> Analyzer<'a> {
                                 }
                             }
                         }
+                        // pop context
                         "if_statement" => {
                             self.context.pop();
                         }
@@ -125,7 +130,9 @@ impl<'a> Analyzer<'a> {
                 | "member_call_expression"
                 | "scoped_call_expression" => {
                     path.push(cur.clone());
-                    self.call(cur, Some(index), Some(source.clone()), Some(path.clone()));
+                    if !self.call(cur, Some(index), Some(source.clone()), Some(path.clone())) {
+                        break;
+                    }
                 }
                 "echo_statement" => path.push(cur),
                 "argument" => index = cur.get_index(),
@@ -143,18 +150,21 @@ impl<'a> Analyzer<'a> {
     }
 
     /// push ctx to stack and enter new frame, returns true if there are taints.
+    /// returns true if simulated return is tainted
     fn call(
         &mut self,
         cursor: Cursor<'a>,
         index: Option<usize>,
         source: Option<Taint>,
         path: Option<Vec<Cursor<'a>>>,
-    ) {
+    ) -> bool {
+        let mut passes_taint = true;
         let name = match cursor.name() {
             Some(name) => name,
             None => cursor.to_string().replace("\"", "").replace("'", ""),
         };
         if let Some(resolved) = self.resolved.clone().get(&name) {
+            passes_taint = false;
             // passing taint into param
             if let Some(index) = index {
                 if let Some(param_cur) = resolved.parameters().get(index) {
@@ -206,6 +216,8 @@ impl<'a> Analyzer<'a> {
                 }
             }
         }
+
+        passes_taint
     }
 
     /// get a taint associated with this cursor
