@@ -1,3 +1,4 @@
+use crate::tree::cursor::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -11,7 +12,40 @@ pub struct Vuln {
     waypoints: Option<Vec<Waypoint>>,
 }
 
+pub enum VertKind {
+    Source,
+    Sanitizer,
+    Sink,
+}
+
 impl Vuln {
+    /// standardize cursor to matching string
+    pub fn identify(&self, cursor: Cursor) -> Option<VertKind> {
+        let kind = cursor.kind().to_string();
+        let name = match cursor.kind() {
+            "cast_type" => {
+                let s = format!("({})", cursor.to_str());
+                println!("cast type {s}");
+                s
+            }
+            _ => cursor.name().unwrap_or_default(),
+        };
+
+        if self.has_sanitizer(&kind) || self.has_sanitizer(&name) {
+            return Some(VertKind::Sanitizer);
+        }
+
+        if self.has_source(&kind) || self.has_source(&name) {
+            return Some(VertKind::Source);
+        }
+
+        if self.has_sink(&kind) || self.has_sink(&name) {
+            return Some(VertKind::Sink);
+        }
+
+        None
+    }
+
     pub fn sources(&self) -> &HashSet<String> {
         &self.sources
     }

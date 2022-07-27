@@ -1,4 +1,4 @@
-use super::rules::{Rules, Vuln};
+use super::rules::{Rules, VertKind, Vuln};
 use super::vertex::*;
 use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
@@ -143,21 +143,15 @@ impl<'a> Graph<'a> {
                 for (parent, path) in vert.parents().iter() {
                     let mut sanitized = false;
                     for segment in path.segments() {
-                        let kind = segment.kind().to_string();
-                        let name = match segment.kind() {
-                            "cast_type" => {
-                                let s = format!("({})", segment.to_str());
-                                println!("cast type {s}");
-                                s
+                        match vuln.identify(segment.clone()) {
+                            Some(VertKind::Sanitizer) => {
+                                sanitized = true;
+                                break;
                             }
-                            _ => segment.name().unwrap_or_default(),
-                        };
-                        if vuln.has_source(&name) || vuln.has_source(&kind) {
-                            results.insert(stack.clone());
-                        }
-                        if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
-                            sanitized = true;
-                            break;
+                            Some(VertKind::Source) => {
+                                results.insert(stack.clone());
+                            }
+                            _ => {}
                         }
                     }
                     if !sanitized {
@@ -172,21 +166,15 @@ impl<'a> Graph<'a> {
                 for (_, path) in vert.sources().iter() {
                     let mut sanitized = false;
                     for segment in path.segments() {
-                        let kind = segment.kind().to_string();
-                        let name = match segment.kind() {
-                            "cast_type" => {
-                                let s = format!("({})", segment.to_str());
-                                println!("cast type {s}");
-                                s
+                        match vuln.identify(segment.clone()) {
+                            Some(VertKind::Sanitizer) => {
+                                sanitized = true;
+                                break;
                             }
-                            _ => segment.name().unwrap_or_default(),
-                        };
-                        if vuln.has_source(&name) || vuln.has_source(&kind) {
-                            results.insert(stack.clone());
-                        }
-                        if vuln.has_sanitizer(&name) || vuln.has_sanitizer(&kind) {
-                            sanitized = true;
-                            break;
+                            Some(VertKind::Source) => {
+                                results.insert(stack.clone());
+                            }
+                            _ => {}
                         }
                     }
 
