@@ -2,11 +2,13 @@ use super::rules::{Rules, VertKind, Vuln};
 use super::vertex::*;
 use crate::analyzer::taint::*;
 use crate::tree::cursor::*;
+use crate::tree::resolved::Resolved;
 use std::collections::{HashMap, HashSet};
 
 pub struct Graph<'a> {
     nodes: HashMap<Cursor<'a>, Vertex<'a>>,
     leaves: HashMap<Taint, Vec<Cursor<'a>>>,
+    returns: HashMap<Resolved<'a>, Vec<Cursor<'a>>>,
 }
 
 impl<'a> Graph<'a> {
@@ -14,10 +16,15 @@ impl<'a> Graph<'a> {
         Self {
             nodes: HashMap::new(),
             leaves: HashMap::new(),
+            returns: HashMap::new(),
         }
     }
 
-    /// push a taint to the graph, true if first occurence, false if known
+    pub fn returns(&self, resolved: &Resolved<'a>) -> Option<&Vec<Cursor<'a>>> {
+        self.returns.get(resolved)
+    }
+
+    /// push a taint to the graph, returns false if recursive
     pub fn push(&mut self, path: PathItem<'a>, cursor: Cursor<'a>, vertex: Vertex<'a>) -> bool {
         let mut vertex = vertex;
         let known = self.nodes.contains_key(&cursor);
@@ -146,7 +153,7 @@ impl<'a> Graph<'a> {
 
         if let Some(last) = stack.last() {
             if let Some(vert) = self.nodes.get(last) {
-                //println!("crawling {}", last.to_str());
+                // crawl up each parent taint
                 for (parent, path) in vert.parents().iter() {
                     let mut sanitized = false;
                     for segment in path.segments() {
@@ -170,6 +177,7 @@ impl<'a> Graph<'a> {
                         stack.pop();
                     }
                 }
+                // crawl up each source taint
                 for (_, path) in vert.sources().iter() {
                     let mut sanitized = false;
                     for segment in path.segments() {

@@ -1,7 +1,7 @@
 use super::traverser::*;
 use super::{cursor::*, traverser::Order};
 
-#[derive(Clone)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub enum Resolved<'a> {
     Function { cursor: Cursor<'a> },
     Root { cursor: Cursor<'a> },

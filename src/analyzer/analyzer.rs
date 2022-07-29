@@ -36,7 +36,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    /// analyze repository and produce a flow graph
+    /// analyze tree and produce a flow graph
     pub fn graph(&mut self) -> &Graph<'a> {
         self.resolve_files();
 
@@ -57,18 +57,18 @@ impl<'a> Analyzer<'a> {
         let mut traversal =
             Traversal::new_block(&cursor, vec!["method_declaration", "function_definition"]);
 
+        // depth first iterator that returns enum Order { Enter, Leave }
         while let Some(motion) = traversal.next() {
             match motion {
-                Order::Enter(cur) => {
-                    match cur.kind() {
-                        // push context
-                        "if_statement" => {
-                            self.context
-                                .push(Context::new(cur.kind().to_string(), cur.kind().to_string()));
-                        }
-                        _ => (),
+                // push context
+                Order::Enter(cur) => match cur.kind() {
+                    "if_statement" => {
+                        self.context
+                            .push(Context::new(cur.kind().to_string(), cur.kind().to_string()));
                     }
-                }
+                    _ => (),
+                },
+                // pop context and trace taints
                 Order::Leave(cur) => {
                     match cur.kind() {
                         // trace if taint
@@ -108,9 +108,7 @@ impl<'a> Analyzer<'a> {
     fn trace(&mut self, cursor: Cursor<'a>, source: Taint) -> bool {
         let mut path = Vec::new();
         let mut index: usize = 0;
-
         let mut tracer = Trace::new(cursor);
-
         while let Some(cur) = tracer.next() {
             // dont trace through boolean conditions
             if let Some(s) = cur.field() {
@@ -119,6 +117,7 @@ impl<'a> Analyzer<'a> {
                 }
             }
             match cur.kind() {
+                // these vertices propagate taints
                 "return_statement" | "assignment_expression" => {
                     if let Ok(assign) = Taint::from_trace(cur.clone()) {
                         path.push(cur.clone());
@@ -126,12 +125,18 @@ impl<'a> Analyzer<'a> {
                         return true;
                     }
                 }
+
+                // these need to be recorded as possible sanitizers
                 "cast_expression" => {
                     let mut type_node = cur.clone();
                     type_node.goto_field("type");
                     println!("cast expr {}", type_node.kind());
                     path.push(type_node);
                 }
+
+                // these can be unresolved or resolved
+                // unresolved can be sanitizers
+                // resolved can propogate taint to params
                 "function_call_expression"
                 | "member_call_expression"
                 | "scoped_call_expression" => {
@@ -140,8 +145,14 @@ impl<'a> Analyzer<'a> {
                         break;
                     }
                 }
+
+                // this is a special sink for PHP
                 "echo_statement" => path.push(cur),
+
+                // keep track of index to know which params we might need to taint
                 "argument" => index = cur.get_index(),
+
+                // data doesnt flow up from an expression statement
                 "expression_statement" => break,
                 _ => (),
             }
@@ -165,15 +176,20 @@ impl<'a> Analyzer<'a> {
         path: Option<Vec<Cursor<'a>>>,
     ) -> bool {
         let mut passes_taint = true;
+
+        // figure out the name of the function
         let name = match cursor.name() {
             Some(name) => name,
             None => cursor.to_string().replace("\"", "").replace("'", ""),
         };
+
+        // confirm function is a resolved one
         if let Some(resolved) = self.resolved.clone().get(&name) {
             passes_taint = false;
             // passing taint into param
             if let (Some(index), Some(source), Some(path)) = (index, source, path) {
                 if let Some(param_cur) = resolved.parameters().get(index) {
+                    // if graph tells us to continue
                     if self.context.push(Context::new(
                         resolved.cursor().kind().to_string(),
                         resolved.cursor().name().unwrap_or_default(),
@@ -211,6 +227,8 @@ impl<'a> Analyzer<'a> {
             } else {
                 // simple jump dont pass a taint or clear after
                 // (all calls to that block should taint same stuff with no input)
+
+                // if graph tells us to continue
                 if self.context.push(Context::new(
                     resolved.cursor().kind().to_string(),
                     resolved.name(),
